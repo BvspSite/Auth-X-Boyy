@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, logActivity, parseProductMeta } from '@/lib/supabase';
 import { getClientIp } from '@/lib/auth';
+import { parseLicenseNote } from '@/lib/license-expiry';
 
 /**
  * POST /api/license/activate
@@ -97,8 +98,9 @@ export async function POST(req) {
       newStatus = 'active';
       const activatedAt = now.toISOString();
 
-      if (license.duration_days > 0) {
-        const expDate = new Date(now.getTime() + license.duration_days * 24 * 60 * 60 * 1000);
+      const durMeta = parseLicenseNote(license.note, license.duration_days);
+      if (!durMeta.isLifetime && durMeta.durationSeconds > 0) {
+        const expDate = new Date(now.getTime() + durMeta.durationSeconds * 1000);
         updatedExpiresAt = expDate.toISOString();
       } else {
         // Lifetime

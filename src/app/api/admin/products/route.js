@@ -21,13 +21,18 @@ export async function GET(req) {
 
     if (error) throw error;
 
-    const formatted = (products || []).map((p) => {
-      const parsed = parseProductMeta(p);
-      return {
-        ...parsed,
-        licenseCount: p.licenses ? p.licenses[0]?.count || 0 : 0,
-      };
-    });
+    const isSuperAdmin = admin.role === 'super_admin';
+    const currentUsername = (admin.username || '').toLowerCase();
+
+    const formatted = (products || [])
+      .map((p) => {
+        const parsed = parseProductMeta(p);
+        return {
+          ...parsed,
+          licenseCount: p.licenses ? p.licenses[0]?.count || 0 : 0,
+        };
+      })
+      .filter((p) => isSuperAdmin || (p.owner && p.owner.toLowerCase() === currentUsername));
 
     return NextResponse.json({
       success: true,
@@ -48,6 +53,8 @@ export async function POST(req) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
   const ip = getClientIp(req);
+  const isSuperAdmin = admin.role === 'super_admin';
+  const currentUsername = (admin.username || '').toLowerCase();
 
   try {
     const body = await req.json().catch(() => ({}));
@@ -83,6 +90,7 @@ export async function POST(req) {
         seller_key,
         paused: false,
         version: '1.0',
+        owner: currentUsername,
       });
 
       const { data: inserted, error } = await supabaseAdmin
@@ -101,6 +109,7 @@ export async function POST(req) {
       await logActivity('APP_CREATED', `Application created: ${name} (${id})`, {
         app_id: id,
         admin: admin.username,
+        owner: currentUsername,
       }, ip);
 
       return NextResponse.json({
@@ -128,12 +137,17 @@ export async function POST(req) {
       }
 
       const parsed = parseProductMeta(current);
+      if (!isSuperAdmin && parsed.owner && parsed.owner.toLowerCase() !== currentUsername) {
+        return NextResponse.json({ success: false, message: 'Akses ditolak: Anda bukan pemilik aplikasi ini.' }, { status: 403 });
+      }
+
       const updatedJson = serializeProductMeta({
         desc: parsed.description,
         secret: parsed.secret,
         seller_key: parsed.seller_key,
         paused: parsed.paused,
         version: parsed.version,
+        owner: parsed.owner,
       });
 
       const { data: updated, error } = await supabaseAdmin
@@ -179,6 +193,10 @@ export async function POST(req) {
       }
 
       const parsed = parseProductMeta(current);
+      if (!isSuperAdmin && parsed.owner && parsed.owner.toLowerCase() !== currentUsername) {
+        return NextResponse.json({ success: false, message: 'Akses ditolak: Anda bukan pemilik aplikasi ini.' }, { status: 403 });
+      }
+
       const isPaused = paused !== undefined ? Boolean(paused) : !parsed.paused;
 
       const updatedJson = serializeProductMeta({
@@ -187,6 +205,7 @@ export async function POST(req) {
         seller_key: parsed.seller_key,
         paused: isPaused,
         version: parsed.version,
+        owner: parsed.owner,
       });
 
       const { data: updated, error } = await supabaseAdmin
@@ -232,6 +251,10 @@ export async function POST(req) {
       }
 
       const parsed = parseProductMeta(current);
+      if (!isSuperAdmin && parsed.owner && parsed.owner.toLowerCase() !== currentUsername) {
+        return NextResponse.json({ success: false, message: 'Akses ditolak: Anda bukan pemilik aplikasi ini.' }, { status: 403 });
+      }
+
       const newSecret = crypto.randomBytes(16).toString('hex');
 
       const updatedJson = serializeProductMeta({
@@ -240,6 +263,7 @@ export async function POST(req) {
         seller_key: parsed.seller_key,
         paused: parsed.paused,
         version: parsed.version,
+        owner: parsed.owner,
       });
 
       const { data: updated, error } = await supabaseAdmin
@@ -281,6 +305,10 @@ export async function POST(req) {
       }
 
       const parsed = parseProductMeta(current);
+      if (!isSuperAdmin && parsed.owner && parsed.owner.toLowerCase() !== currentUsername) {
+        return NextResponse.json({ success: false, message: 'Akses ditolak: Anda bukan pemilik aplikasi ini.' }, { status: 403 });
+      }
+
       const newSellerKey = crypto.randomBytes(16).toString('hex');
 
       const updatedJson = serializeProductMeta({
@@ -289,6 +317,7 @@ export async function POST(req) {
         seller_key: newSellerKey,
         paused: parsed.paused,
         version: parsed.version,
+        owner: parsed.owner,
       });
 
       const { data: updated, error } = await supabaseAdmin

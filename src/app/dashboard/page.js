@@ -295,11 +295,12 @@ export default function DashboardPage() {
   };
 
   // Currently Selected Application
-  const currentApp = products.find((p) => p.id === selectedAppId) || products[0] || {
-    id: 'panel-aimbot-xboy',
-    name: 'PANEL AIMBOT XBOY',
-    secret: 'c3723595dc621c4b20cf5e7edfb6a543f4135dea2fc09ad383eaae4762eece4de',
-    seller_key: '77a543813a896c1e9e30cfc98bc59ff1',
+  const currentApp = products.find((p) => p.id === selectedAppId) || (products.length > 0 ? products[0] : null);
+  const activeApp = currentApp || {
+    id: '',
+    name: 'Belum Ada Aplikasi',
+    secret: '',
+    seller_key: '',
     paused: false,
     version: '1.0'
   };
@@ -311,10 +312,10 @@ export default function DashboardPage() {
     csharp: {
       name: 'C#',
       code: `public static api LicenseAuthApp = new api(
-    name: "${currentApp.name}",
-    ownerid: "${currentApp.id}",
-    secret: "${currentApp.secret}",
-    version: "${currentApp.version || '1.0'}",
+    name: "${activeApp.name}",
+    ownerid: "${activeApp.id}",
+    secret: "${activeApp.secret}",
+    version: "${activeApp.version || '1.0'}",
     url: "${serverUrl}"
     //path: "Your Path Here" // (OPTIONAL) if you use token validation, example: Token.txt
 );`,
@@ -322,10 +323,10 @@ export default function DashboardPage() {
     },
     cpp: {
       name: 'C++',
-      code: `std::string name = "${currentApp.name}";
-std::string ownerid = "${currentApp.id}";
-std::string secret = "${currentApp.secret}";
-std::string version = "${currentApp.version || '1.0'}";
+      code: `std::string name = "${activeApp.name}";
+std::string ownerid = "${activeApp.id}";
+std::string secret = "${activeApp.secret}";
+std::string version = "${activeApp.version || '1.0'}";
 std::string url = "${serverUrl}"; // Server URL
 
 KeyAuth::api LicenseAuthApp(name, ownerid, secret, version, url);`,
@@ -334,59 +335,59 @@ KeyAuth::api LicenseAuthApp(name, ownerid, secret, version, url);`,
     python: {
       name: 'Python',
       code: `keyauthapp = api(
-    name = "${currentApp.name}",
-    ownerid = "${currentApp.id}",
-    secret = "${currentApp.secret}",
-    version = "${currentApp.version || '1.0'}",
+    name = "${activeApp.name}",
+    ownerid = "${activeApp.id}",
+    secret = "${activeApp.secret}",
+    version = "${activeApp.version || '1.0'}",
     url = "${serverUrl}"
 )`,
       github: 'https://github.com/KeyAuth/KeyAuth-Python-Example'
     },
     php: {
       name: 'PHP',
-      code: `$name = "${currentApp.name}";
-$ownerid = "${currentApp.id}";
-$secret = "${currentApp.secret}";
-$version = "${currentApp.version || '1.0'}";
+      code: `$name = "${activeApp.name}";
+$ownerid = "${activeApp.id}";
+$secret = "${activeApp.secret}";
+$version = "${activeApp.version || '1.0'}";
 $url = "${serverUrl}";`,
       github: 'https://github.com/KeyAuth/KeyAuth-PHP-Example'
     },
     javascript: {
       name: 'JavaScript',
       code: `const LicenseAuthApp = new KeyAuth(
-    "${currentApp.name}",
-    "${currentApp.id}",
-    "${currentApp.secret}",
-    "${currentApp.version || '1.0'}",
+    "${activeApp.name}",
+    "${activeApp.id}",
+    "${activeApp.secret}",
+    "${activeApp.version || '1.0'}",
     "${serverUrl}"
 );`,
       github: 'https://github.com/mazkdevf/KeyAuth-JS-Example'
     },
     java: {
       name: 'Java',
-      code: `private static String appname = "${currentApp.name}";
-private static String ownerid = "${currentApp.id}";
-private static String secret = "${currentApp.secret}";
-private static String version = "${currentApp.version || '1.0'}";
+      code: `private static String appname = "${activeApp.name}";
+private static String ownerid = "${activeApp.id}";
+private static String secret = "${activeApp.secret}";
+private static String version = "${activeApp.version || '1.0'}";
 private static String url = "${serverUrl}";`,
       github: 'https://github.com/KeyAuth-Archive/KeyAuth-JAVA-api'
     },
     vb: {
       name: 'VB.Net',
-      code: `Private Shared name As String = "${currentApp.name}"
-Private Shared ownerid As String = "${currentApp.id}"
-Private Shared secret As String = "${currentApp.secret}"
-Private Shared version As String = "${currentApp.version || '1.0'}"
+      code: `Private Shared name As String = "${activeApp.name}"
+Private Shared ownerid As String = "${activeApp.id}"
+Private Shared secret As String = "${activeApp.secret}"
+Private Shared version As String = "${activeApp.version || '1.0'}"
 Private Shared url As String = "${serverUrl}"`,
       github: 'https://github.com/KeyAuth/KeyAuth-VB-Example'
     },
     rust: {
       name: 'Rust',
       code: `let mut keyauthapp = keyauth::KeyauthApi::new(
-    "${currentApp.name}",
-    "${currentApp.id}",
-    "${currentApp.secret}",
-    "${currentApp.version || '1.0'}",
+    "${activeApp.name}",
+    "${activeApp.id}",
+    "${activeApp.secret}",
+    "${activeApp.version || '1.0'}",
     "${serverUrl}",
 );`,
       github: 'https://github.com/mazkdevf/KeyAuth-Rust-Example'
@@ -394,10 +395,10 @@ Private Shared url As String = "${serverUrl}"`,
     go: {
       name: 'Go',
       code: `app := keyauth.New(
-    "${currentApp.name}",
-    "${currentApp.id}",
-    "${currentApp.secret}",
-    "${currentApp.version || '1.0'}",
+    "${activeApp.name}",
+    "${activeApp.id}",
+    "${activeApp.secret}",
+    "${activeApp.version || '1.0'}",
     "${serverUrl}",
 )`,
       github: 'https://github.com/mazkdevf/KeyAuth-Go-Example'
@@ -405,10 +406,10 @@ Private Shared url As String = "${serverUrl}"`,
     lua: {
       name: 'Lua',
       code: `local KeyAuthApp = KeyAuth:new(
-    "${currentApp.name}",
-    "${currentApp.id}",
-    "${currentApp.secret}",
-    "${currentApp.version || '1.0'}",
+    "${activeApp.name}",
+    "${activeApp.id}",
+    "${activeApp.secret}",
+    "${activeApp.version || '1.0'}",
     "${serverUrl}"
 )`,
       github: 'https://github.com/mazkdevf/KeyAuth-Lua-Example'
@@ -416,10 +417,10 @@ Private Shared url As String = "${serverUrl}"`,
     ruby: {
       name: 'Ruby',
       code: `keyauthapp = KeyAuth::Api.new(
-    "${currentApp.name}",
-    "${currentApp.id}",
-    "${currentApp.secret}",
-    "${currentApp.version || '1.0'}",
+    "${activeApp.name}",
+    "${activeApp.id}",
+    "${activeApp.secret}",
+    "${activeApp.version || '1.0'}",
     "${serverUrl}"
 )`,
       github: 'https://github.com/mazkdevf/KeyAuth-Ruby-Example'
@@ -427,10 +428,10 @@ Private Shared url As String = "${serverUrl}"`,
     perl: {
       name: 'Perl',
       code: `my $keyauth = KeyAuth->new(
-    "${currentApp.name}",
-    "${currentApp.id}",
-    "${currentApp.secret}",
-    "${currentApp.version || '1.0'}",
+    "${activeApp.name}",
+    "${activeApp.id}",
+    "${activeApp.secret}",
+    "${activeApp.version || '1.0'}",
     "${serverUrl}"
 );`,
       github: 'https://github.com/mazkdevf/KeyAuth-Perl-Example'
@@ -891,7 +892,9 @@ Private Shared url As String = "${serverUrl}"`,
 
 
   // Seller link formatted
-  const sellerApiUrl = `${serverUrl}/api/seller?sellerkey=${currentApp.seller_key}&type=add&expiry=1&mask=******-******-******-******-******-******&level=1&amount=1&character=1&format=json`;
+  const sellerApiUrl = currentApp
+    ? `${serverUrl}/api/seller?sellerkey=${currentApp.seller_key}&type=add&expiry=1&mask=******-******-******-******-******-******&level=1&amount=1&character=1&format=json`
+    : '';
 
   const isSuperAdmin = adminUser?.role === 'super_admin';
 
@@ -1012,7 +1015,7 @@ Private Shared url As String = "${serverUrl}"`,
             }}>
               <Layers size={14} style={{ color: '#38bdf8' }} />
               <span style={{ color: 'var(--text-muted)' }}>App:</span>
-              <strong style={{ color: '#38bdf8' }}>{currentApp.name}</strong>
+              <strong style={{ color: '#38bdf8' }}>{currentApp ? currentApp.name : '0 Aplikasi'}</strong>
             </div>
 
             <button
@@ -1071,160 +1074,201 @@ Private Shared url As String = "${serverUrl}"`,
         {/* ===================== TAB: MANAGE APP (EXACT REPLICA PHOTO 2) ===================== */}
         {activeTab === 'manage_app' && (
           <div>
-            {/* Top Language Selector Tabs */}
-            <div style={{
-              display: 'flex',
-              gap: 4,
-              borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-              paddingBottom: 0,
-              marginBottom: 16,
-              overflowX: 'auto'
-            }}>
-              {Object.keys(languageSnippets).map((langKey) => {
-                const lang = languageSnippets[langKey];
-                const isSelected = selectedLang === langKey;
-                return (
-                  <button
-                    key={langKey}
-                    onClick={() => setSelectedLang(langKey)}
-                    style={{
-                      background: isSelected ? '#1e3a8a' : 'transparent',
-                      color: isSelected ? '#ffffff' : '#94a3b8',
-                      border: 'none',
-                      borderBottom: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
-                      padding: '8px 16px',
-                      fontSize: '0.85rem',
-                      fontWeight: isSelected ? 700 : 500,
-                      cursor: 'pointer',
-                      borderRadius: '6px 6px 0 0',
-                      transition: '0.15s ease'
-                    }}
-                  >
-                    {lang.name}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Code Credentials Box */}
-            <div style={{
-              background: '#09090d',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 10,
-              padding: 20,
-              marginBottom: 20
-            }}>
-              <pre style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: '0.875rem',
-                color: '#e2e8f0',
-                lineHeight: 1.6,
-                margin: 0,
-                overflowX: 'auto'
-              }}>
-                {languageSnippets[selectedLang]?.code}
-              </pre>
-
+            {products.length === 0 ? (
               <div style={{
-                marginTop: 18,
-                paddingTop: 14,
-                borderTop: '1px solid rgba(255, 255, 255, 0.06)',
-                fontSize: '0.8rem',
-                color: '#94a3b8'
+                background: '#09090d',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 12,
+                padding: '44px 24px',
+                textAlign: 'center',
+                marginBottom: 24
               }}>
-                <div style={{ marginBottom: 4 }}>
-                  <span style={{ color: '#64748b' }}>Example Files: </span>
-                  <a href={languageSnippets[selectedLang]?.github} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none' }}>
-                    {languageSnippets[selectedLang]?.github}
-                  </a>
+                <div style={{
+                  width: 54,
+                  height: 54,
+                  borderRadius: 12,
+                  background: 'rgba(56, 189, 248, 0.1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px auto',
+                  border: '1px solid rgba(56, 189, 248, 0.2)'
+                }}>
+                  <Layers size={26} style={{ color: '#38bdf8' }} />
                 </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>Videos: </span>
-                  <a href="https://videos.licenseauth.help" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none' }}>
-                    https://videos.licenseauth.help
-                  </a>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', marginBottom: 8 }}>
+                  Belum Ada Aplikasi Terdaftar
+                </h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: 480, margin: '0 auto 20px auto', lineHeight: 1.5 }}>
+                  Akun Anda belum memiliki aplikasi. Klik tombol di bawah untuk membuat aplikasi pertama Anda.
+                </p>
+                <button
+                  onClick={() => setShowCreateAppModal(true)}
+                  className="btn btn-blue"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, margin: '0 auto' }}
+                >
+                  <Plus size={16} /> Create New App
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Top Language Selector Tabs */}
+                <div style={{
+                  display: 'flex',
+                  gap: 4,
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                  paddingBottom: 0,
+                  marginBottom: 16,
+                  overflowX: 'auto'
+                }}>
+                  {Object.keys(languageSnippets).map((langKey) => {
+                    const lang = languageSnippets[langKey];
+                    const isSelected = selectedLang === langKey;
+                    return (
+                      <button
+                        key={langKey}
+                        onClick={() => setSelectedLang(langKey)}
+                        style={{
+                          background: isSelected ? '#1e3a8a' : 'transparent',
+                          color: isSelected ? '#ffffff' : '#94a3b8',
+                          border: 'none',
+                          borderBottom: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
+                          padding: '8px 16px',
+                          fontSize: '0.85rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          borderRadius: '6px 6px 0 0',
+                          transition: '0.15s ease'
+                        }}
+                      >
+                        {lang.name}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
 
-              <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => copyText(languageSnippets[selectedLang]?.code, 'Credentials Code')}
-                  className="btn btn-secondary btn-sm"
-                  style={{ background: '#0f0f17', border: '1px solid rgba(255, 255, 255, 0.1)' }}
-                >
-                  <Copy size={14} /> Copy Credentials
-                </button>
-                <a
-                  href={languageSnippets[selectedLang]?.github}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary btn-sm"
-                  style={{ background: '#0f0f17', border: '1px solid rgba(255, 255, 255, 0.1)' }}
-                >
-                  <LinkIcon size={14} /> View {languageSnippets[selectedLang]?.name} Example
-                </a>
-              </div>
-            </div>
+                {/* Code Credentials Box */}
+                <div style={{
+                  background: '#09090d',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 10,
+                  padding: 20,
+                  marginBottom: 20
+                }}>
+                  <pre style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.875rem',
+                    color: '#e2e8f0',
+                    lineHeight: 1.6,
+                    margin: 0,
+                    overflowX: 'auto'
+                  }}>
+                    {languageSnippets[selectedLang]?.code}
+                  </pre>
 
-            {/* Action Buttons Row */}
-            <div style={{
-              display: 'flex',
-              gap: 10,
-              flexWrap: 'wrap',
-              marginBottom: 24
-            }}>
-              <button
-                onClick={() => setShowCreateAppModal(true)}
-                className="btn btn-blue btn-sm"
-              >
-                <Plus size={15} /> Create New App
-              </button>
+                  <div style={{
+                    marginTop: 18,
+                    paddingTop: 14,
+                    borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+                    fontSize: '0.8rem',
+                    color: '#94a3b8'
+                  }}>
+                    <div style={{ marginBottom: 4 }}>
+                      <span style={{ color: '#64748b' }}>Example Files: </span>
+                      <a href={languageSnippets[selectedLang]?.github} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none' }}>
+                        {languageSnippets[selectedLang]?.github}
+                      </a>
+                    </div>
+                    <div>
+                      <span style={{ color: '#64748b' }}>Videos: </span>
+                      <a href="https://videos.licenseauth.help" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'none' }}>
+                        https://videos.licenseauth.help
+                      </a>
+                    </div>
+                  </div>
 
-              <button
-                onClick={() => {
-                  setRenameAppName(currentApp.name);
-                  setShowRenameAppModal(true);
-                }}
-                className="btn btn-cyan btn-sm"
-              >
-                <Edit2 size={15} /> Rename App
-              </button>
+                  <div style={{ marginTop: 16, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => copyText(languageSnippets[selectedLang]?.code, 'Credentials Code')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ background: '#0f0f17', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                    >
+                      <Copy size={14} /> Copy Credentials
+                    </button>
+                    <a
+                      href={languageSnippets[selectedLang]?.github}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-secondary btn-sm"
+                      style={{ background: '#0f0f17', border: '1px solid rgba(255, 255, 255, 0.1)' }}
+                    >
+                      <LinkIcon size={14} /> View {languageSnippets[selectedLang]?.name} Example
+                    </a>
+                  </div>
+                </div>
 
-              <button
-                onClick={() => setShowPauseAppModal(true)}
-                className="btn btn-orange btn-sm"
-              >
-                {currentApp.paused ? <Play size={15} /> : <Pause size={15} />}
-                {currentApp.paused ? 'Unpause App & Users' : 'Pause App & Users'}
-              </button>
+                {/* Action Buttons Row */}
+                <div style={{
+                  display: 'flex',
+                  gap: 10,
+                  flexWrap: 'wrap',
+                  marginBottom: 24
+                }}>
+                  <button
+                    onClick={() => setShowCreateAppModal(true)}
+                    className="btn btn-blue btn-sm"
+                  >
+                    <Plus size={15} /> Create New App
+                  </button>
 
-              <button
-                onClick={handleRefreshAppSecret}
-                disabled={isRefreshingSecret}
-                className="btn btn-green btn-sm"
-              >
-                <RefreshCw size={15} className={isRefreshingSecret ? "animate-spin" : ""} />
-                <span>{isRefreshingSecret ? 'Merefresh Secret...' : 'Refresh App Secret'}</span>
-              </button>
+                  <button
+                    onClick={() => {
+                      if (!currentApp) return;
+                      setRenameAppName(currentApp.name);
+                      setShowRenameAppModal(true);
+                    }}
+                    className="btn btn-cyan btn-sm"
+                  >
+                    <Edit2 size={15} /> Rename App
+                  </button>
 
-              {isSuperAdmin ? (
-                <button
-                  onClick={() => setShowDeleteAppModal(true)}
-                  className="btn btn-red btn-sm"
-                >
-                  <Trash2 size={15} /> Delete App
-                </button>
-              ) : (
-                <button
-                  disabled
-                  className="btn btn-secondary btn-sm"
-                  style={{ opacity: 0.5, cursor: 'not-allowed', color: '#f87171' }}
-                  title="Hanya Super Admin yang berhak menghapus aplikasi"
-                >
-                  <Lock size={14} /> Delete App (Super Admin Only)
-                </button>
-              )}
-            </div>
+                  <button
+                    onClick={() => setShowPauseAppModal(true)}
+                    className="btn btn-orange btn-sm"
+                  >
+                    {currentApp?.paused ? <Play size={15} /> : <Pause size={15} />}
+                    {currentApp?.paused ? 'Unpause App & Users' : 'Pause App & Users'}
+                  </button>
+
+                  <button
+                    onClick={handleRefreshAppSecret}
+                    disabled={isRefreshingSecret}
+                    className="btn btn-green btn-sm"
+                  >
+                    <RefreshCw size={15} className={isRefreshingSecret ? "animate-spin" : ""} />
+                    <span>{isRefreshingSecret ? 'Merefresh Secret...' : 'Refresh App Secret'}</span>
+                  </button>
+
+                  {isSuperAdmin ? (
+                    <button
+                      onClick={() => setShowDeleteAppModal(true)}
+                      className="btn btn-red btn-sm"
+                    >
+                      <Trash2 size={15} /> Delete App
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="btn btn-secondary btn-sm"
+                      style={{ opacity: 0.5, cursor: 'not-allowed', color: '#f87171' }}
+                      title="Hanya Super Admin yang berhak menghapus aplikasi"
+                    >
+                      <Lock size={14} /> Delete App (Super Admin Only)
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Table "All Application" */}
             <div style={{
@@ -1234,7 +1278,7 @@ Private Shared url As String = "${serverUrl}"`,
               padding: 20
             }}>
               <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', marginBottom: 16 }}>
-                All Application
+                All Application ({products.length})
               </h3>
 
               <div className="table-container">
@@ -1247,8 +1291,15 @@ Private Shared url As String = "${serverUrl}"`,
                     </tr>
                   </thead>
                   <tbody>
-                    {products.map((p) => {
-                      const isSelected = p.id === currentApp.id;
+                    {products.length === 0 ? (
+                      <tr>
+                        <td colSpan={3} style={{ textAlign: 'center', padding: '36px 16px', color: '#64748b' }}>
+                          Belum ada aplikasi yang terdaftar untuk akun Anda. Klik tombol "Create New App" di atas.
+                        </td>
+                      </tr>
+                    ) : (
+                      products.map((p) => {
+                        const isSelected = currentApp && p.id === currentApp.id;
                       return (
                         <tr key={p.id}>
                           <td>
@@ -1294,15 +1345,9 @@ Private Shared url As String = "${serverUrl}"`,
                           </td>
                         </tr>
                       );
-                    })}
-                    {products.length === 0 && (
-                      <tr>
-                        <td colSpan={3} style={{ textAlign: 'center', padding: 36, color: '#64748b' }}>
-                          Belum ada aplikasi yang terdaftar. Buat aplikasi baru di atas!
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
+                    })
+                  )}
+                </tbody>
                 </table>
               </div>
             </div>
@@ -1312,63 +1357,89 @@ Private Shared url As String = "${serverUrl}"`,
         {/* ===================== TAB: RESELLER KEY (EXACT REPLICA PHOTO 3) ===================== */}
         {activeTab === 'seller' && (
           <div>
-            {/* Dark Red Notice Banner */}
-            <div className="banner-seller">
-              <div style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', marginBottom: 4 }}>
-                Manage your seller settings here
+            {products.length === 0 ? (
+              <div style={{
+                background: '#09090d',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 12,
+                padding: '44px 24px',
+                textAlign: 'center',
+                marginBottom: 24
+              }}>
+                <Bot size={40} style={{ color: '#64748b', margin: '0 auto 12px auto' }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: 8 }}>
+                  Belum Ada Aplikasi Terdaftar
+                </h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 20px auto' }}>
+                  Seller Key terhubung ke aplikasi spesifik. Buat aplikasi terlebih dahulu untuk mendapatkan Seller Key dan API seller.
+                </p>
+                <button
+                  onClick={() => setShowCreateAppModal(true)}
+                  className="btn btn-blue"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 auto' }}
+                >
+                  <Plus size={16} /> Buat Aplikasi Baru
+                </button>
               </div>
-              <div style={{ fontSize: '0.875rem' }}>
-                Join Our Discord server <strong style={{ color: '#fff' }}>For Support</strong>
-              </div>
-            </div>
+            ) : (
+              <>
+                {/* Dark Red Notice Banner */}
+                <div className="banner-seller">
+                  <div style={{ fontWeight: 700, fontSize: '1rem', color: '#fff', marginBottom: 4 }}>
+                    Manage your seller settings here
+                  </div>
+                  <div style={{ fontSize: '0.875rem' }}>
+                    Join Our Discord server <strong style={{ color: '#fff' }}>For Support</strong>
+                  </div>
+                </div>
 
-            {/* Current Application Selector for Reseller Settings */}
-            <div style={{
-              background: '#09090d',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 12,
-              padding: 24,
-              marginBottom: 24
-            }}>
-              <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <h4 style={{ fontSize: '1rem', color: '#fff' }}>Aplikasi: <span style={{ color: '#38bdf8' }}>{currentApp.name}</span></h4>
-                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Kunci dan tautan di bawah ini terhubung ke aplikasi yang sedang dipilih.</p>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ganti Aplikasi:</span>
-                  <select
-                    className="select"
-                    style={{ width: 'auto', minWidth: 180, height: 38 }}
-                    value={currentApp.id}
-                    onChange={(e) => setSelectedAppId(e.target.value)}
-                  >
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                {/* Current Application Selector for Reseller Settings */}
+                <div style={{
+                  background: '#09090d',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 12,
+                  padding: 24,
+                  marginBottom: 24
+                }}>
+                  <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                    <div>
+                      <h4 style={{ fontSize: '1rem', color: '#fff' }}>Aplikasi: <span style={{ color: '#38bdf8' }}>{activeApp.name}</span></h4>
+                      <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Kunci dan tautan di bawah ini terhubung ke aplikasi yang sedang dipilih.</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ganti Aplikasi:</span>
+                      <select
+                        className="select"
+                        style={{ width: 'auto', minWidth: 180, height: 38 }}
+                        value={activeApp.id}
+                        onChange={(e) => setSelectedAppId(e.target.value)}
+                      >
+                        {products.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
 
-              {/* Field 1: Seller Key */}
-              <div className="form-group" style={{ marginBottom: 20 }}>
-                <label className="form-label">Seller Key</label>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <input
-                    type="text"
-                    readOnly
-                    className="input"
-                    value={currentApp.seller_key}
-                    style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8', letterSpacing: '0.05em' }}
-                  />
-                  <button
-                    onClick={() => copyText(currentApp.seller_key, 'Seller Key')}
-                    className="btn btn-secondary"
-                  >
-                    <Copy size={16} /> Copy
-                  </button>
-                </div>
-              </div>
+                  {/* Field 1: Seller Key */}
+                  <div className="form-group" style={{ marginBottom: 20 }}>
+                    <label className="form-label">Seller Key</label>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <input
+                        type="text"
+                        readOnly
+                        className="input"
+                        value={activeApp.seller_key}
+                        style={{ fontFamily: 'var(--font-mono)', color: '#38bdf8', letterSpacing: '0.05em' }}
+                      />
+                      <button
+                        onClick={() => copyText(activeApp.seller_key, 'Seller Key')}
+                        className="btn btn-secondary"
+                      >
+                        <Copy size={16} /> Copy
+                      </button>
+                    </div>
+                  </div>
 
               {/* Field 2: Seller Link */}
               <div className="form-group" style={{ marginBottom: 24 }}>
@@ -1447,50 +1518,78 @@ Private Shared url As String = "${serverUrl}"`,
                 </a>
               </div>
             </div>
+              </>
+            )}
           </div>
         )}
 
         {/* ===================== TAB: LICENSES ===================== */}
         {activeTab === 'licenses' && (
           <div>
-            {/* Application Scope Header Card */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 14,
-              padding: '14px 20px',
-              background: '#090d16',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
-              borderRadius: 12,
-              marginBottom: 20
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {products.length === 0 ? (
+              <div style={{
+                background: '#09090d',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: 12,
+                padding: '44px 24px',
+                textAlign: 'center',
+                marginBottom: 24
+              }}>
+                <KeyRound size={40} style={{ color: '#64748b', margin: '0 auto 12px auto' }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff', marginBottom: 8 }}>
+                  Belum Ada Aplikasi Terdaftar
+                </h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: 460, margin: '0 auto 20px auto' }}>
+                  Lisensi harus terikat pada suatu aplikasi. Silakan buat aplikasi terlebih dahulu untuk mulai membuat dan mengelola lisensi.
+                </p>
+                <button
+                  onClick={() => setShowCreateAppModal(true)}
+                  className="btn btn-blue"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, margin: '0 auto' }}
+                >
+                  <Plus size={16} /> Buat Aplikasi Baru
+                </button>
+              </div>
+            ) : (
+              <>
+                {/* Application Scope Header Card */}
                 <div style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 10,
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  border: '1px solid rgba(56, 189, 248, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 14,
+                  padding: '14px 20px',
+                  background: '#090d16',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 12,
+                  marginBottom: 20
                 }}>
-                  <Layers size={22} style={{ color: '#38bdf8' }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-                    Aplikasi Aktif (Terpilih)
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 10,
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Layers size={22} style={{ color: '#38bdf8' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                        Aplikasi Aktif (Terpilih)
+                      </div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span>{activeApp.name}</span>
+                        <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: 9999, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 600 }}>
+                          {licenses.length} Lisensi
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span>{currentApp.name}</span>
-                    <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: 9999, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 600 }}>
-                      {licenses.length} Lisensi
-                    </span>
-                  </div>
-                </div>
-              </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ganti Scope Aplikasi:</span>
@@ -1570,9 +1669,14 @@ Private Shared url As String = "${serverUrl}"`,
               {/* Generate Key Button */}
               <button
                 onClick={() => {
+                  if (!currentApp) {
+                    showToast('Harap buat aplikasi terlebih dahulu!', 'error');
+                    return;
+                  }
                   setGenProduct(currentApp.id);
                   setShowGenerateModal(true);
                 }}
+                disabled={!currentApp}
                 className="btn btn-primary"
                 style={{ height: 40 }}
               >
@@ -1643,7 +1747,7 @@ Private Shared url As String = "${serverUrl}"`,
                             <span className={`badge badge-${lic.status}`}>{lic.status}</span>
                           </td>
                           <td>
-                            {lic.duration_days > 0 ? `${lic.duration_days} Hari` : 'Lifetime'}
+                            {lic.duration_display || (lic.duration_days > 0 ? `${lic.duration_days} Hari` : 'Lifetime')}
                           </td>
                           <td>
                             <span style={{ fontSize: '0.85rem', color: lic.devicesCount > 0 ? '#10b981' : 'var(--text-dim)' }}>
@@ -1651,7 +1755,7 @@ Private Shared url As String = "${serverUrl}"`,
                             </span>
                           </td>
                           <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString('id-ID') : '-'}
+                            {lic.expires_at ? new Date(lic.expires_at).toLocaleString('id-ID') : '-'}
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
@@ -1735,6 +1839,8 @@ Private Shared url As String = "${serverUrl}"`,
                 </tbody>
               </table>
             </div>
+              </>
+            )}
           </div>
         )}
 
@@ -2853,35 +2959,45 @@ Private Shared url As String = "${serverUrl}"`,
                     <select
                       className="select"
                       value={genExpiryUnit}
-                      onChange={(e) => setGenExpiryUnit(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setGenExpiryUnit(val);
+                        if (val === 'Lifetime') {
+                          setGenDuration(0);
+                        } else if (genDuration <= 0) {
+                          setGenDuration(1);
+                        }
+                      }}
                       style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
                     >
-                      <option value="Days">Days</option>
-                      <option value="Seconds">Seconds</option>
-                      <option value="Minutes">Minutes</option>
-                      <option value="Hours">Hours</option>
-                      <option value="Weeks">Weeks</option>
-                      <option value="Months">Months</option>
-                      <option value="Years">Years</option>
-                      <option value="Lifetime">Lifetime</option>
+                      <option value="Days">Days (Hari)</option>
+                      <option value="Seconds">Seconds (Detik)</option>
+                      <option value="Minutes">Minutes (Menit)</option>
+                      <option value="Hours">Hours (Jam)</option>
+                      <option value="Weeks">Weeks (Minggu)</option>
+                      <option value="Months">Months (Bulan)</option>
+                      <option value="Years">Years (Tahun)</option>
+                      <option value="Lifetime">Lifetime (Selamanya)</option>
                     </select>
                   </div>
 
                   {/* License Duration */}
-                  <div className="form-group" style={{ marginBottom: 8 }}>
-                    <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
-                      License Duration:
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      required
-                      className="input"
-                      value={genDuration}
-                      onChange={(e) => setGenDuration(parseInt(e.target.value) || 0)}
-                      style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
-                    />
-                  </div>
+                  {genExpiryUnit !== 'Lifetime' && (
+                    <div className="form-group" style={{ marginBottom: 8 }}>
+                      <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
+                        License Duration ({genExpiryUnit}):
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        required
+                        className="input"
+                        value={genDuration}
+                        onChange={(e) => setGenDuration(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                        style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="modal-footer" style={{ padding: '16px 24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>

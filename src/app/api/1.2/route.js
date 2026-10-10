@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, logActivity, parseProductMeta } from '@/lib/supabase';
 import { getClientIp } from '@/lib/auth';
+import { parseLicenseNote } from '@/lib/license-expiry';
 
 /**
  * /api/1.2
@@ -79,7 +80,7 @@ export async function POST(req) {
         }
         return NextResponse.json({
           success: false,
-          message: 'Key has expired! Masa aktif lisensi sudah habis dan tidak dapat digunakan lagi.',
+          message: 'Key has expired!',
         });
       }
 
@@ -87,8 +88,9 @@ export async function POST(req) {
       // Key can only be unused if activated_at was never set!
       if (license.status === 'unused' && !license.activated_at) {
         let updatedExpiresAt = null;
-        if (license.duration_days > 0) {
-          updatedExpiresAt = new Date(now.getTime() + license.duration_days * 24 * 60 * 60 * 1000).toISOString();
+        const durMeta = parseLicenseNote(license.note, license.duration_days);
+        if (!durMeta.isLifetime && durMeta.durationSeconds > 0) {
+          updatedExpiresAt = new Date(now.getTime() + durMeta.durationSeconds * 1000).toISOString();
         }
         await supabaseAdmin.from('licenses').update({
           status: 'active',

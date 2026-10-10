@@ -72,6 +72,7 @@ export function parseProductMeta(product) {
     seller_key: '',
     paused: false,
     version: '1.0',
+    owner: 'admin',
   };
 
   const raw = product.description || '';
@@ -110,6 +111,7 @@ export function parseProductMeta(product) {
     seller_key: meta.seller_key,
     paused: Boolean(meta.paused),
     version: meta.version || '1.0',
+    owner: (meta.owner || 'admin').toLowerCase(),
     metaRaw: meta,
   };
 }
@@ -117,13 +119,14 @@ export function parseProductMeta(product) {
 /**
  * Serializes product metadata into JSON string for description column
  */
-export function serializeProductMeta({ desc = '', secret = '', seller_key = '', paused = false, version = '1.0' }) {
+export function serializeProductMeta({ desc = '', secret = '', seller_key = '', paused = false, version = '1.0', owner = 'admin' }) {
   return JSON.stringify({
     desc: desc || '',
     secret: secret || '',
     seller_key: seller_key || '',
     paused: Boolean(paused),
     version: version || '1.0',
+    owner: (owner || 'admin').toLowerCase(),
   });
 }
 
