@@ -7,8 +7,8 @@ import { ShieldCheck, Lock, User, Eye, EyeOff, ArrowRight, Loader2, KeyRound } f
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -87,7 +87,7 @@ export default function LoginPage() {
             AUTH-X-BOY <span className="gradient-text">ADMIN</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Masuk ke panel manajemen lisensi & keamanan Supabase
+            Masuk ke panel manajemen lisensi & keamanan AUTH-X-BOY
           </p>
         </div>
 
@@ -132,7 +132,7 @@ export default function LoginPage() {
                 style={{ paddingLeft: 38 }}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="Masukkan username"
                 required
               />
               <User size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
@@ -149,7 +149,7 @@ export default function LoginPage() {
                 style={{ paddingLeft: 38, paddingRight: 40 }}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Masukkan password"
                 required
               />
               <Lock size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-dim)' }} />
@@ -190,26 +190,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Credential Hint */}
-        <div style={{
-          marginTop: 24,
-          padding: 12,
-          borderRadius: 'var(--radius-sm)',
-          background: 'rgba(15, 23, 42, 0.5)',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '0.8rem',
-          color: 'var(--text-dim)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <span>Default: <code>admin</code> / <code>admin123</code></span>
-          <span style={{ color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <KeyRound size={12} /> Supabase Auth
-          </span>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: 20 }}>
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
           <Link href="/" style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textDecoration: 'none' }}>
             &larr; Kembali ke Beranda
           </Link>
@@ -218,3 +199,4 @@ export default function LoginPage() {
     </div>
   );
 }
+

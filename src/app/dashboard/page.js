@@ -46,6 +46,23 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
 
+  // Operation Loading States for responsive animations
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadingLicenses, setLoadingLicenses] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isCreatingApp, setIsCreatingApp] = useState(false);
+  const [isRenamingApp, setIsRenamingApp] = useState(false);
+  const [isPausingApp, setIsPausingApp] = useState(false);
+  const [isRefreshingSecret, setIsRefreshingSecret] = useState(false);
+  const [isRefreshingSellerKey, setIsRefreshingSellerKey] = useState(false);
+  const [isDeletingApp, setIsDeletingApp] = useState(false);
+  const [selectingAppId, setSelectingAppId] = useState(null);
+  const [loadingHwidId, setLoadingHwidId] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState(null);
+  const [deletingLicenseId, setDeletingLicenseId] = useState(null);
+  const [isExtending, setIsExtending] = useState(false);
+  const [isClearingLogs, setIsClearingLogs] = useState(false);
+
   // Data states
   const [stats, setStats] = useState(null);
   const [licenses, setLicenses] = useState([]);
@@ -116,7 +133,22 @@ export default function DashboardPage() {
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([loadStats(), loadLicenses(), loadProducts(), loadLogs()]);
+      let activePid = '';
+      try {
+        const prodRes = await fetch('/api/admin/products');
+        const prodData = await prodRes.json();
+        if (prodData.success && prodData.products?.length > 0) {
+          setProducts(prodData.products);
+          const savedAppId = typeof window !== 'undefined' ? localStorage.getItem('authcaxs_selected_app') : null;
+          const targetApp = prodData.products.find((p) => p.id === savedAppId) || prodData.products[0];
+          activePid = targetApp.id;
+          setSelectedAppId(targetApp.id);
+          setGenProduct(targetApp.id);
+          setProductFilter(targetApp.id);
+        }
+      } catch (e) {}
+
+      await Promise.all([loadStats(), loadLicenses(activePid), loadLogs()]);
     } finally {
       setLoading(false);
     }
@@ -130,17 +162,25 @@ export default function DashboardPage() {
     } catch (e) {}
   };
 
-  const loadLicenses = async () => {
+  const loadLicenses = async (overrideProductId, overrideSearch, overrideStatus) => {
+    setLoadingLicenses(true);
     try {
+      const pid = overrideProductId !== undefined ? overrideProductId : productFilter;
+      const srch = overrideSearch !== undefined ? overrideSearch : searchKey;
+      const st = overrideStatus !== undefined ? overrideStatus : statusFilter;
+
       let url = '/api/admin/licenses?limit=100';
-      if (searchKey) url += `&search=${encodeURIComponent(searchKey)}`;
-      if (statusFilter) url += `&status=${encodeURIComponent(statusFilter)}`;
-      if (productFilter) url += `&product_id=${encodeURIComponent(productFilter)}`;
+      if (srch) url += `&search=${encodeURIComponent(srch)}`;
+      if (st) url += `&status=${encodeURIComponent(st)}`;
+      if (pid) url += `&product_id=${encodeURIComponent(pid)}`;
 
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) setLicenses(data.licenses || []);
-    } catch (e) {}
+    } catch (e) {
+    } finally {
+      setLoadingLicenses(false);
+    }
   };
 
   const loadProducts = async () => {
@@ -150,11 +190,13 @@ export default function DashboardPage() {
       if (data.success && data.products) {
         setProducts(data.products);
         if (data.products.length > 0) {
+          const savedAppId = typeof window !== 'undefined' ? localStorage.getItem('authcaxs_selected_app') : null;
           setSelectedAppId((prev) => {
             const exists = data.products.some((p) => p.id === prev);
-            return exists ? prev : data.products[0].id;
+            if (exists) return prev;
+            const savedExists = data.products.some((p) => p.id === savedAppId);
+            return savedExists ? savedAppId : data.products[0].id;
           });
-          if (!genProduct) setGenProduct(data.products[0].id);
         }
       }
     } catch (e) {}
@@ -167,6 +209,35 @@ export default function DashboardPage() {
       if (data.success) setLogs(data.logs || []);
     } catch (e) {}
   };
+
+  // Header refresh with spin animation
+  const handleHeaderRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await Promise.all([loadStats(), loadProducts(), loadLicenses(), loadLogs()]);
+      showToast('Data berhasil diperbarui!');
+    } catch {
+      showToast('Gagal memuat ulang data', 'error');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Select App: Scope licenses and switch tab to licenses!
+  const handleSelectApp = async (product) => {
+    setSelectingAppId(product.id);
+    setSelectedAppId(product.id);
+    setProductFilter(product.id);
+    setGenProduct(product.id);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('authcaxs_selected_app', product.id);
+    }
+    await loadLicenses(product.id);
+    setActiveTab('licenses');
+    setSelectingAppId(null);
+    showToast(`Beralih ke aplikasi: ${product.name}`);
+  };
+
 
   // Logout handler
   const handleLogout = async () => {
@@ -336,6 +407,7 @@ Private Shared url As String = "${serverUrl}"`,
       return;
     }
     const id = newAppId.trim() || newAppName.toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+    setIsCreatingApp(true);
     try {
       const res = await fetch('/api/admin/products', {
         method: 'POST',
@@ -350,11 +422,19 @@ Private Shared url As String = "${serverUrl}"`,
         setNewAppName('');
         await loadProducts();
         setSelectedAppId(id);
+        setProductFilter(id);
+        setGenProduct(id);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('authcaxs_selected_app', id);
+        }
+        await loadLicenses(id);
       } else {
         showToast(data.message, 'error');
       }
     } catch {
       showToast('Gagal membuat aplikasi', 'error');
+    } finally {
+      setIsCreatingApp(false);
     }
   };
 
@@ -365,6 +445,7 @@ Private Shared url As String = "${serverUrl}"`,
       showToast('Masukkan nama baru!', 'error');
       return;
     }
+    setIsRenamingApp(true);
     try {
       const res = await fetch('/api/admin/products', {
         method: 'POST',
@@ -382,11 +463,14 @@ Private Shared url As String = "${serverUrl}"`,
       }
     } catch {
       showToast('Gagal mengubah nama aplikasi', 'error');
+    } finally {
+      setIsRenamingApp(false);
     }
   };
 
   // 3. Pause / Unpause App
   const handleTogglePauseApp = async () => {
+    setIsPausingApp(true);
     try {
       const newPausedState = !currentApp.paused;
       const res = await fetch('/api/admin/products', {
@@ -404,11 +488,14 @@ Private Shared url As String = "${serverUrl}"`,
       }
     } catch {
       showToast('Gagal mengubah status pause aplikasi', 'error');
+    } finally {
+      setIsPausingApp(false);
     }
   };
 
   // 4. Refresh App Secret
   const handleRefreshAppSecret = async () => {
+    setIsRefreshingSecret(true);
     try {
       const res = await fetch('/api/admin/products', {
         method: 'POST',
@@ -424,11 +511,14 @@ Private Shared url As String = "${serverUrl}"`,
       }
     } catch {
       showToast('Gagal me-refresh app secret', 'error');
+    } finally {
+      setIsRefreshingSecret(false);
     }
   };
 
   // 5. Delete App
   const handleDeleteApp = async () => {
+    setIsDeletingApp(true);
     try {
       const res = await fetch(`/api/admin/products?id=${encodeURIComponent(currentApp.id)}`, {
         method: 'DELETE',
@@ -438,16 +528,22 @@ Private Shared url As String = "${serverUrl}"`,
         showToast('Aplikasi berhasil dihapus!');
         setShowDeleteAppModal(false);
         await loadProducts();
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('authcaxs_selected_app');
+        }
       } else {
         showToast(data.message, 'error');
       }
     } catch {
       showToast('Gagal menghapus aplikasi', 'error');
+    } finally {
+      setIsDeletingApp(false);
     }
   };
 
   // 6. Refresh Seller Key
   const handleRefreshSellerKey = async () => {
+    setIsRefreshingSellerKey(true);
     try {
       const res = await fetch('/api/admin/products', {
         method: 'POST',
@@ -463,12 +559,16 @@ Private Shared url As String = "${serverUrl}"`,
       }
     } catch {
       showToast('Gagal me-refresh seller key', 'error');
+    } finally {
+      setIsRefreshingSellerKey(false);
     }
   };
 
   // LICENSE ACTIONS
   const handleGenerateLicenses = async (e) => {
     e.preventDefault();
+    setIsGenerating(true);
+    const targetProductId = genProduct || currentApp.id;
     try {
       const res = await fetch('/api/admin/licenses', {
         method: 'POST',
@@ -482,24 +582,27 @@ Private Shared url As String = "${serverUrl}"`,
           note: genNote,
           expiry_unit: genExpiryUnit,
           duration: genDuration,
-          product_id: genProduct || currentApp.id,
+          product_id: targetProductId,
         }),
       });
       const data = await res.json();
       if (data.success) {
         setGeneratedResult(data.licenses);
         showToast(data.message);
-        loadLicenses();
+        await loadLicenses(targetProductId);
         loadStats();
       } else {
         showToast(data.message, 'error');
       }
     } catch {
       showToast('Gagal generate lisensi', 'error');
+    } finally {
+      setIsGenerating(false);
     }
   };
 
   const handleUpdateLicenseStatus = async (id, newStatus) => {
+    setUpdatingStatusId(id);
     try {
       const res = await fetch('/api/admin/licenses', {
         method: 'PATCH',
@@ -509,17 +612,20 @@ Private Shared url As String = "${serverUrl}"`,
       const data = await res.json();
       if (data.success) {
         showToast(`Status lisensi diubah ke ${newStatus.toUpperCase()}`);
-        loadLicenses();
+        await loadLicenses();
         loadStats();
       } else {
         showToast(data.message, 'error');
       }
     } catch {
       showToast('Gagal update status', 'error');
+    } finally {
+      setUpdatingStatusId(null);
     }
   };
 
-  const handleResetHWID = async (licenseKey) => {
+  const handleResetHWID = async (licenseKey, licId) => {
+    setLoadingHwidId(licId);
     try {
       const res = await fetch('/api/license/reset-hwid', {
         method: 'POST',
@@ -529,35 +635,41 @@ Private Shared url As String = "${serverUrl}"`,
       const data = await res.json();
       if (data.success) {
         showToast('HWID berhasil direset!');
-        loadLicenses();
+        await loadLicenses();
       } else {
         showToast(data.message, 'error');
       }
     } catch {
       showToast('Gagal reset HWID', 'error');
+    } finally {
+      setLoadingHwidId(null);
     }
   };
 
   const handleDeleteLicense = async (id) => {
     if (!confirm('Yakin ingin menghapus lisensi ini secara permanen?')) return;
+    setDeletingLicenseId(id);
     try {
       const res = await fetch(`/api/admin/licenses?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         showToast('Lisensi berhasil dihapus!');
-        loadLicenses();
+        await loadLicenses();
         loadStats();
       } else {
         showToast(data.message, 'error');
       }
     } catch {
       showToast('Gagal menghapus lisensi', 'error');
+    } finally {
+      setDeletingLicenseId(null);
     }
   };
 
   const handleExtendSubmit = async (e) => {
     e.preventDefault();
     if (!selectedLicense) return;
+    setIsExtending(true);
     try {
       const res = await fetch('/api/admin/licenses', {
         method: 'PATCH',
@@ -568,17 +680,20 @@ Private Shared url As String = "${serverUrl}"`,
       if (data.success) {
         showToast(`Berhasil menambah ${extendDays} hari!`);
         setShowExtendModal(false);
-        loadLicenses();
+        await loadLicenses();
       } else {
         showToast(data.message, 'error');
       }
     } catch {
       showToast('Gagal memperpanjang lisensi', 'error');
+    } finally {
+      setIsExtending(false);
     }
   };
 
   const handleClearLogs = async () => {
     if (!confirm('Apakah Anda yakin ingin mengosongkan riwayat log?')) return;
+    setIsClearingLogs(true);
     try {
       const res = await fetch('/api/admin/logs', { method: 'DELETE' });
       const data = await res.json();
@@ -590,8 +705,11 @@ Private Shared url As String = "${serverUrl}"`,
       }
     } catch {
       showToast('Gagal membersihkan log', 'error');
+    } finally {
+      setIsClearingLogs(false);
     }
   };
+
 
   // Seller link formatted
   const sellerApiUrl = `${serverUrl}/api/seller?sellerkey=${currentApp.seller_key}&type=add&expiry=1&mask=******-******-******-******-******-******&level=1&amount=1&character=1&format=json`;
@@ -683,8 +801,30 @@ Private Shared url As String = "${serverUrl}"`,
               <strong style={{ color: '#fff' }}>{adminUser.username}</strong>
             </div>
 
-            <button onClick={loadAllData} className="btn btn-secondary btn-sm" title="Refresh Data">
-              <RefreshCw size={14} /> Refresh
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full)',
+              background: 'rgba(56, 189, 248, 0.1)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              fontSize: '0.85rem'
+            }}>
+              <Layers size={14} style={{ color: '#38bdf8' }} />
+              <span style={{ color: 'var(--text-muted)' }}>App:</span>
+              <strong style={{ color: '#38bdf8' }}>{currentApp.name}</strong>
+            </div>
+
+            <button
+              onClick={handleHeaderRefresh}
+              disabled={isRefreshing}
+              className="btn btn-secondary btn-sm"
+              title="Refresh Data"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+              <span>{isRefreshing ? 'Memuat...' : 'Refresh'}</span>
             </button>
 
             <button onClick={handleLogout} className="btn btn-danger btn-sm">
@@ -860,9 +1000,11 @@ Private Shared url As String = "${serverUrl}"`,
 
               <button
                 onClick={handleRefreshAppSecret}
+                disabled={isRefreshingSecret}
                 className="btn btn-green btn-sm"
               >
-                <RefreshCw size={15} /> Refresh App Secret
+                <RefreshCw size={15} className={isRefreshingSecret ? "animate-spin" : ""} />
+                <span>{isRefreshingSecret ? 'Merefresh Secret...' : 'Refresh App Secret'}</span>
               </button>
 
               <button
@@ -921,14 +1063,21 @@ Private Shared url As String = "${serverUrl}"`,
                               </div>
                             ) : (
                               <button
-                                onClick={() => {
-                                  setSelectedAppId(p.id);
-                                  showToast(`Aplikasi aktif diganti ke: ${p.name}`);
-                                }}
+                                onClick={() => handleSelectApp(p)}
+                                disabled={selectingAppId === p.id}
                                 className="btn-select"
                               >
-                                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }}></span>
-                                <span>Select</span>
+                                {selectingAppId === p.id ? (
+                                  <>
+                                    <RefreshCw size={12} className="animate-spin" />
+                                    <span>Membuka...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }}></span>
+                                    <span>Select</span>
+                                  </>
+                                )}
                               </button>
                             )}
                           </td>
@@ -1093,6 +1242,72 @@ Private Shared url As String = "${serverUrl}"`,
         {/* ===================== TAB: LICENSES ===================== */}
         {activeTab === 'licenses' && (
           <div>
+            {/* Application Scope Header Card */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 14,
+              padding: '14px 20px',
+              background: '#090d16',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: 12,
+              marginBottom: 20
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: 10,
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Layers size={22} style={{ color: '#38bdf8' }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+                    Aplikasi Aktif (Terpilih)
+                  </div>
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span>{currentApp.name}</span>
+                    <span style={{ fontSize: '0.8rem', padding: '2px 8px', borderRadius: 9999, background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', fontWeight: 600 }}>
+                      {licenses.length} Lisensi
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Ganti Scope Aplikasi:</span>
+                <select
+                  className="select"
+                  style={{ height: 38, width: 'auto', minWidth: 200 }}
+                  value={productFilter}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setProductFilter(val);
+                    if (val) {
+                      setSelectedAppId(val);
+                      setGenProduct(val);
+                      if (typeof window !== 'undefined') localStorage.setItem('authcaxs_selected_app', val);
+                    }
+                    loadLicenses(val);
+                  }}
+                >
+                  {products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} {p.id === selectedAppId ? '★ (Aktif)' : ''}
+                    </option>
+                  ))}
+                  <option value="">Semua Aplikasi (Tampilkan Semua)</option>
+                </select>
+              </div>
+            </div>
+
             {/* Action Bar */}
             <div style={{
               display: 'flex',
@@ -1130,21 +1345,14 @@ Private Shared url As String = "${serverUrl}"`,
                   <option value="banned">Banned</option>
                 </select>
 
-                {/* Filter Product */}
-                <select
-                  className="select"
-                  style={{ width: 'auto', height: 40 }}
-                  value={productFilter}
-                  onChange={(e) => setProductFilter(e.target.value)}
+                <button
+                  onClick={() => loadLicenses()}
+                  disabled={loadingLicenses}
+                  className="btn btn-secondary"
+                  style={{ height: 40, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  <option value="">Semua Aplikasi</option>
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-
-                <button onClick={loadLicenses} className="btn btn-secondary" style={{ height: 40 }}>
-                  <Filter size={15} /> Terapkan Filter
+                  <Filter size={15} className={loadingLicenses ? "animate-spin" : ""} />
+                  <span>{loadingLicenses ? 'Memuat...' : 'Terapkan Filter'}</span>
                 </button>
               </div>
 
@@ -1176,111 +1384,130 @@ Private Shared url As String = "${serverUrl}"`,
                   </tr>
                 </thead>
                 <tbody>
-                  {licenses.map((lic) => {
-                    return (
-                      <tr key={lic.id}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem' }}>
-                              {lic.license_key}
-                            </span>
-                            <button
-                              onClick={() => copyText(lic.license_key, 'License Key')}
-                              className="btn btn-secondary btn-icon"
-                              style={{ width: 26, height: 26 }}
-                              title="Salin Kunci"
-                            >
-                              <Copy size={12} />
-                            </button>
-                          </div>
-                          {lic.note && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 2 }}>
-                              {lic.note}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600 }}>
-                            {lic.products?.name || lic.product_id}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`badge badge-${lic.status}`}>{lic.status}</span>
-                        </td>
-                        <td>
-                          {lic.duration_days > 0 ? `${lic.duration_days} Hari` : 'Lifetime'}
-                        </td>
-                        <td>
-                          <span style={{ fontSize: '0.85rem', color: lic.devicesCount > 0 ? '#10b981' : 'var(--text-dim)' }}>
-                            {lic.devicesCount} Perangkat
-                          </span>
-                        </td>
-                        <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString('id-ID') : '-'}
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                            {/* Ban / Unban Toggle */}
-                            {lic.status === 'banned' ? (
-                              <button
-                                onClick={() => handleUpdateLicenseStatus(lic.id, 'active')}
-                                className="btn btn-secondary btn-sm"
-                                title="Unban Lisensi"
-                                style={{ color: '#10b981' }}
-                              >
-                                <Play size={14} /> Unban
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleUpdateLicenseStatus(lic.id, 'banned')}
-                                className="btn btn-danger btn-sm"
-                                title="Stop / Ban Lisensi"
-                              >
-                                <Ban size={14} /> Stop
-                              </button>
-                            )}
-
-                            {/* Reset HWID */}
-                            <button
-                              onClick={() => handleResetHWID(lic.license_key)}
-                              className="btn btn-secondary btn-sm"
-                              title="Reset HWID Perangkat"
-                            >
-                              <RotateCcw size={14} /> Reset HWID
-                            </button>
-
-                            {/* Extend */}
-                            <button
-                              onClick={() => {
-                                setSelectedLicense(lic);
-                                setShowExtendModal(true);
-                              }}
-                              className="btn btn-secondary btn-sm"
-                              title="Perpanjang Durasi"
-                            >
-                              <Clock size={14} />
-                            </button>
-
-                            {/* Delete */}
-                            <button
-                              onClick={() => handleDeleteLicense(lic.id)}
-                              className="btn btn-secondary btn-sm"
-                              style={{ color: '#ef4444' }}
-                              title="Hapus Lisensi"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {licenses.length === 0 && (
+                  {loadingLicenses ? (
                     <tr>
-                      <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>
-                        Tidak ada lisensi yang ditemukan. Silakan klik tombol "Generate Lisensi Baru".
+                      <td colSpan={7}>
+                        <div className="table-loading-container">
+                          <div className="table-loading-spinner"></div>
+                          <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Memuat lisensi aplikasi...</span>
+                        </div>
                       </td>
                     </tr>
+                  ) : licenses.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: 48, color: '#64748b' }}>
+                        Belum ada lisensi untuk aplikasi ini. Silakan klik tombol <strong>"Generate Lisensi Baru"</strong> di atas.
+                      </td>
+                    </tr>
+                  ) : (
+                    licenses.map((lic) => {
+                      return (
+                        <tr key={lic.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem' }}>
+                                {lic.license_key}
+                              </span>
+                              <button
+                                onClick={() => copyText(lic.license_key, 'License Key')}
+                                className="btn btn-secondary btn-icon"
+                                style={{ width: 26, height: 26 }}
+                                title="Salin Kunci"
+                              >
+                                <Copy size={12} />
+                              </button>
+                            </div>
+                            {lic.note && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-dim)', marginTop: 2 }}>
+                                {lic.note}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600 }}>
+                              {lic.products?.name || lic.product_id}
+                            </span>
+                          </td>
+                          <td>
+                            <span className={`badge badge-${lic.status}`}>{lic.status}</span>
+                          </td>
+                          <td>
+                            {lic.duration_days > 0 ? `${lic.duration_days} Hari` : 'Lifetime'}
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.85rem', color: lic.devicesCount > 0 ? '#10b981' : 'var(--text-dim)' }}>
+                              {lic.devicesCount} Perangkat
+                            </span>
+                          </td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {lic.expires_at ? new Date(lic.expires_at).toLocaleDateString('id-ID') : '-'}
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                              {/* Ban / Unban Toggle */}
+                              {lic.status === 'banned' ? (
+                                <button
+                                  onClick={() => handleUpdateLicenseStatus(lic.id, 'active')}
+                                  disabled={updatingStatusId === lic.id}
+                                  className="btn btn-secondary btn-sm"
+                                  title="Unban Lisensi"
+                                  style={{ color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <Play size={13} className={updatingStatusId === lic.id ? "animate-spin" : ""} />
+                                  <span>{updatingStatusId === lic.id ? 'Memproses...' : 'Unban'}</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleUpdateLicenseStatus(lic.id, 'banned')}
+                                  disabled={updatingStatusId === lic.id}
+                                  className="btn btn-danger btn-sm"
+                                  title="Stop / Ban Lisensi"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <Ban size={13} className={updatingStatusId === lic.id ? "animate-spin" : ""} />
+                                  <span>{updatingStatusId === lic.id ? 'Memproses...' : 'Stop'}</span>
+                                </button>
+                              )}
+
+                              {/* Reset HWID */}
+                              <button
+                                onClick={() => handleResetHWID(lic.license_key, lic.id)}
+                                disabled={loadingHwidId === lic.id}
+                                className="btn btn-secondary btn-sm"
+                                title="Reset HWID Perangkat"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                              >
+                                <RotateCcw size={13} className={loadingHwidId === lic.id ? "animate-spin" : ""} />
+                                <span>{loadingHwidId === lic.id ? 'Resetting...' : 'Reset HWID'}</span>
+                              </button>
+
+                              {/* Extend */}
+                              <button
+                                onClick={() => {
+                                  setSelectedLicense(lic);
+                                  setShowExtendModal(true);
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                title="Perpanjang Durasi"
+                              >
+                                <Clock size={14} />
+                              </button>
+
+                              {/* Delete */}
+                              <button
+                                onClick={() => handleDeleteLicense(lic.id)}
+                                disabled={deletingLicenseId === lic.id}
+                                className="btn btn-secondary btn-sm"
+                                style={{ color: '#ef4444' }}
+                                title="Hapus Lisensi"
+                              >
+                                {deletingLicenseId === lic.id ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -1415,8 +1642,14 @@ Private Shared url As String = "${serverUrl}"`,
                 <h3 style={{ fontSize: '1.2rem' }}>Audit Security Logs</h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Pencatatan real-time aktivasi, login, HWID check, dan aksi admin.</p>
               </div>
-              <button onClick={handleClearLogs} className="btn btn-danger btn-sm">
-                <Trash2 size={14} /> Kosongkan Log
+              <button
+                onClick={handleClearLogs}
+                disabled={isClearingLogs}
+                className="btn btn-danger btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                {isClearingLogs ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                <span>{isClearingLogs ? 'Membersihkan...' : 'Kosongkan Log'}</span>
               </button>
             </div>
 
@@ -1536,7 +1769,9 @@ Private Shared url As String = "${serverUrl}"`,
               </div>
               <div className="modal-footer">
                 <button type="button" onClick={() => setShowCreateAppModal(false)} className="btn btn-secondary">Batal</button>
-                <button type="submit" className="btn btn-blue">Create App</button>
+                <button type="submit" disabled={isCreatingApp} className="btn btn-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {isCreatingApp ? <><RefreshCw size={14} className="animate-spin" /> Membuat...</> : 'Create App'}
+                </button>
               </div>
             </form>
           </div>
@@ -1585,7 +1820,9 @@ Private Shared url As String = "${serverUrl}"`,
               </div>
               <div className="modal-footer">
                 <button type="button" onClick={() => setShowRenameAppModal(false)} className="btn btn-secondary">Batal</button>
-                <button type="submit" className="btn btn-cyan">Rename Application</button>
+                <button type="submit" disabled={isRenamingApp} className="btn btn-cyan" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {isRenamingApp ? <><RefreshCw size={14} className="animate-spin" /> Menyimpan...</> : 'Rename Application'}
+                </button>
               </div>
             </form>
           </div>
@@ -1644,9 +1881,11 @@ Private Shared url As String = "${serverUrl}"`,
               <button
                 type="button"
                 onClick={handleTogglePauseApp}
+                disabled={isPausingApp}
                 className="btn btn-orange"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Yes, I'm sure
+                {isPausingApp ? <><RefreshCw size={14} className="animate-spin" /> Memproses...</> : "Yes, I'm sure"}
               </button>
             </div>
           </div>
@@ -1701,9 +1940,11 @@ Private Shared url As String = "${serverUrl}"`,
               <button
                 type="button"
                 onClick={handleDeleteApp}
+                disabled={isDeletingApp}
                 className="btn btn-red"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                Hapus Permanen
+                {isDeletingApp ? <><RefreshCw size={14} className="animate-spin" /> Menghapus...</> : 'Hapus Permanen'}
               </button>
             </div>
           </div>
@@ -1761,6 +2002,18 @@ Private Shared url As String = "${serverUrl}"`,
             {!generatedResult ? (
               <form onSubmit={handleGenerateLicenses}>
                 <div className="modal-body" style={{ padding: '20px 24px' }}>
+                  {/* Target Application Indicator */}
+                  <div style={{ marginBottom: 14 }}>
+                    <label className="form-label" style={{ color: '#94a3b8', fontSize: '0.8rem', marginBottom: 4, display: 'block' }}>
+                      Target Application:
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#1c202c', border: '1px solid #282f42', padding: '8px 12px', borderRadius: 6 }}>
+                      <Layers size={14} style={{ color: '#38bdf8' }} />
+                      <span style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem' }}>{currentApp.name}</span>
+                      <span style={{ fontSize: '0.75rem', color: '#64748b' }}>({currentApp.id})</span>
+                    </div>
+                  </div>
+
                   {/* Amount */}
                   <div className="form-group" style={{ marginBottom: 14 }}>
                     <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
@@ -1895,9 +2148,17 @@ Private Shared url As String = "${serverUrl}"`,
                   </button>
                   <button
                     type="submit"
+                    disabled={isGenerating}
                     className="btn-add-modal"
                   >
-                    Add
+                    {isGenerating ? (
+                      <>
+                        <RefreshCw size={15} className="animate-spin" />
+                        <span>Adding...</span>
+                      </>
+                    ) : (
+                      'Add'
+                    )}
                   </button>
                 </div>
               </form>
@@ -2016,7 +2277,9 @@ Private Shared url As String = "${serverUrl}"`,
               </div>
               <div className="modal-footer">
                 <button type="button" onClick={() => setShowExtendModal(false)} className="btn btn-secondary">Batal</button>
-                <button type="submit" className="btn btn-primary">Tambah Hari</button>
+                <button type="submit" disabled={isExtending} className="btn btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  {isExtending ? <><RefreshCw size={14} className="animate-spin" /> Menyimpan...</> : 'Tambah Hari'}
+                </button>
               </div>
             </form>
           </div>
