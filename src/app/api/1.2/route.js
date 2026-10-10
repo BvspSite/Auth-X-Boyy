@@ -62,7 +62,7 @@ export async function POST(req) {
       // Check if application is paused by admin
       const appMeta = parseProductMeta(license.products);
       if (appMeta && appMeta.paused) {
-        return NextResponse.json({ success: false, message: 'Application is currently paused by admin.' });
+        return NextResponse.json({ success: false, message: 'Application is currently paused by developer.' });
       }
 
       if (license.status === 'banned') {
@@ -71,16 +71,21 @@ export async function POST(req) {
 
       const now = new Date();
 
-      // Check if expired
+      // STRICT EXPIRY CHECK: If license has expired, REJECT IMMEDIATELY.
+      // Resetting HWID will NEVER allow an expired key to be used again.
       if (license.status === 'expired' || (license.expires_at && new Date(license.expires_at) < now)) {
         if (license.status !== 'expired') {
           await supabaseAdmin.from('licenses').update({ status: 'expired' }).eq('id', license.id);
         }
-        return NextResponse.json({ success: false, message: 'Key has expired' });
+        return NextResponse.json({
+          success: false,
+          message: 'Key has expired! Masa aktif lisensi sudah habis dan tidak dapat digunakan lagi.',
+        });
       }
 
-      // A. UNUSED KEY -> First time activation
-      if (license.status === 'unused') {
+      // A. UNUSED KEY -> First time activation ONLY
+      // Key can only be unused if activated_at was never set!
+      if (license.status === 'unused' && !license.activated_at) {
         let updatedExpiresAt = null;
         if (license.duration_days > 0) {
           updatedExpiresAt = new Date(now.getTime() + license.duration_days * 24 * 60 * 60 * 1000).toISOString();
@@ -121,7 +126,7 @@ export async function POST(req) {
         });
       }
 
-      // B. ACTIVE KEY -> HWID Verification & Re-binding if HWID was reset
+      // B. ACTIVE KEY -> HWID Verification & Re-binding ONLY if license is still valid
       const { data: devices } = await supabaseAdmin
         .from('license_devices')
         .select('*')
@@ -155,7 +160,7 @@ export async function POST(req) {
           });
         }
 
-        // HWID was reset (currentDevices.length < maxDevices) -> Re-bind this new HWID!
+        // HWID was reset while license is STILL ACTIVE (currentDevices.length < maxDevices) -> Re-bind this new HWID!
         if (hwid) {
           await supabaseAdmin.from('license_devices').insert([{
             license_id: license.id,

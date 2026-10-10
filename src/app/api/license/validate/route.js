@@ -44,8 +44,11 @@ export async function POST(req) {
     }
 
     const now = new Date();
-    if (license.expires_at && new Date(license.expires_at) < now) {
-      return NextResponse.json({ success: false, message: 'License sudah kedaluwarsa.' }, { status: 403 });
+    if (license.status === 'expired' || (license.expires_at && new Date(license.expires_at) < now)) {
+      if (license.status !== 'expired') {
+        await supabaseAdmin.from('licenses').update({ status: 'expired' }).eq('id', license.id);
+      }
+      return NextResponse.json({ success: false, message: 'License sudah kedaluwarsa (Expired) dan tidak dapat digunakan lagi.' }, { status: 403 });
     }
 
     if (hwid) {

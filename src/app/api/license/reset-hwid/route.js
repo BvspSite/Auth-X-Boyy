@@ -18,9 +18,25 @@ export async function POST(req) {
     if (device_id) {
       const { data: dev } = await supabaseAdmin
         .from('license_devices')
-        .select('*, licenses(license_key)')
+        .select('*, licenses(id, license_key, status, expires_at)')
         .eq('id', device_id)
         .maybeSingle();
+
+      if (!dev) {
+        return NextResponse.json({ success: false, message: 'Data perangkat tidak ditemukan.' }, { status: 404 });
+      }
+
+      // Strict check: if parent license is expired, block reset!
+      const now = new Date();
+      if (dev.licenses?.status === 'expired' || (dev.licenses?.expires_at && new Date(dev.licenses.expires_at) < now)) {
+        if (dev.licenses?.id && dev.licenses?.status !== 'expired') {
+          await supabaseAdmin.from('licenses').update({ status: 'expired' }).eq('id', dev.licenses.id);
+        }
+        return NextResponse.json({
+          success: false,
+          message: 'Lisensi ini sudah kedaluwarsa (Expired)!',
+        }, { status: 400 });
+      }
 
       const { error: delErr } = await supabaseAdmin
         .from('license_devices')
@@ -62,7 +78,7 @@ export async function POST(req) {
       });
     }
 
-    let query = supabaseAdmin.from('licenses').select('id, license_key');
+    let query = supabaseAdmin.from('licenses').select('id, license_key, status, expires_at');
     if (license_id) {
       query = query.eq('id', license_id);
     } else if (license_key) {
@@ -75,6 +91,18 @@ export async function POST(req) {
 
     if (fetchErr || !license) {
       return NextResponse.json({ success: false, message: 'Lisensi tidak ditemukan.' }, { status: 404 });
+    }
+
+    // Strict check: if license is expired, block reset completely!
+    const now = new Date();
+    if (license.status === 'expired' || (license.expires_at && new Date(license.expires_at) < now)) {
+      if (license.status !== 'expired') {
+        await supabaseAdmin.from('licenses').update({ status: 'expired' }).eq('id', license.id);
+      }
+      return NextResponse.json({
+        success: false,
+        message: 'Lisensi ini sudah kedaluwarsa (Expired)!',
+      }, { status: 400 });
     }
 
     // Delete all devices registered to this license

@@ -1681,16 +1681,28 @@ Private Shared url As String = "${serverUrl}"`,
                               )}
 
                               {/* Reset HWID */}
-                              <button
-                                onClick={() => handleResetHWID(lic.license_key, lic.id)}
-                                disabled={loadingHwidId === lic.id}
-                                className="btn btn-secondary btn-sm"
-                                title="Reset HWID Perangkat"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                              >
-                                <RotateCcw size={13} className={loadingHwidId === lic.id ? "animate-spin" : ""} />
-                                <span>{loadingHwidId === lic.id ? 'Resetting...' : 'Reset HWID'}</span>
-                              </button>
+                              {lic.status === 'expired' || (lic.expires_at && new Date(lic.expires_at) < new Date()) ? (
+                                <button
+                                  disabled
+                                  className="btn btn-secondary btn-sm"
+                                  title="Lisensi sudah kedaluwarsa (Expired)! Tambah hari untuk mengaktifkan kembali."
+                                  style={{ opacity: 0.45, cursor: 'not-allowed' }}
+                                >
+                                  <RotateCcw size={13} />
+                                  <span>Expired</span>
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleResetHWID(lic.license_key, lic.id)}
+                                  disabled={loadingHwidId === lic.id}
+                                  className="btn btn-secondary btn-sm"
+                                  title="Reset HWID Perangkat"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <RotateCcw size={13} className={loadingHwidId === lic.id ? "animate-spin" : ""} />
+                                  <span>{loadingHwidId === lic.id ? 'Resetting...' : 'Reset HWID'}</span>
+                                </button>
+                              )}
 
                               {/* Extend */}
                               <button
@@ -2221,16 +2233,22 @@ Private Shared url As String = "${serverUrl}"`,
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                              <button
-                                onClick={() => handleResetDevice(dev)}
-                                disabled={resettingDeviceId === dev.id}
-                                className="btn btn-secondary btn-sm"
-                                style={{ height: 30, padding: '0 8px', color: '#38bdf8', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                                title="Reset HWID perangkat ini agar lisensi bisa dipindah ke PC lain"
-                              >
-                                <RotateCcw size={13} className={resettingDeviceId === dev.id ? "animate-spin" : ""} />
-                                <span>{resettingDeviceId === dev.id ? 'Mereset...' : 'Reset HWID'}</span>
-                              </button>
+                              {dev.license_status === 'expired' || (dev.expires_at && new Date(dev.expires_at) < new Date()) ? (
+                                <span style={{ fontSize: '0.75rem', color: '#ef4444', fontStyle: 'italic', paddingRight: 6 }}>
+                                  Expired (Masa Habis)
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleResetDevice(dev)}
+                                  disabled={resettingDeviceId === dev.id}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ height: 30, padding: '0 8px', color: '#38bdf8', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                  title="Reset HWID perangkat ini agar lisensi bisa dipindah ke PC lain"
+                                >
+                                  <RotateCcw size={13} className={resettingDeviceId === dev.id ? "animate-spin" : ""} />
+                                  <span>{resettingDeviceId === dev.id ? 'Mereset...' : 'Reset HWID'}</span>
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>

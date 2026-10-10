@@ -84,7 +84,7 @@ export async function POST(req) {
       }
       return NextResponse.json({
         success: false,
-        message: 'License Key telah kedaluwarsa (Expired).',
+        message: 'License Key telah kedaluwarsa (Expired)! Masa aktif sudah habis dan tidak dapat digunakan lagi.',
       }, { status: 403 });
     }
 
@@ -92,8 +92,8 @@ export async function POST(req) {
     let updatedExpiresAt = license.expires_at;
     let newStatus = license.status;
 
-    // A. If license is UNUSED: First time activation
-    if (license.status === 'unused') {
+    // A. If license is UNUSED: First time activation ONLY
+    if (license.status === 'unused' && !license.activated_at) {
       newStatus = 'active';
       const activatedAt = now.toISOString();
 
