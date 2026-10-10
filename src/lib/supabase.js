@@ -1,25 +1,46 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const DEFAULT_URL = 'https://hsxczuqxruswiaxemboz.supabase.co';
+const PLACEHOLDER_KEY = 'sb_build_placeholder_key_not_for_runtime';
 
-/**
- * Backend Supabase client using Service Role / Secret key (Bypasses RLS safely on server)
- */
-export const supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
+function createAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || PLACEHOLDER_KEY;
+  return createClient(url, key, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
+
+function createPublic() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || PLACEHOLDER_KEY;
+  return createClient(url, key);
+}
+
+let _adminClient = null;
+export const supabaseAdmin = new Proxy({}, {
+  get(target, prop) {
+    if (!_adminClient) {
+      _adminClient = createAdmin();
+    }
+    const val = _adminClient[prop];
+    return typeof val === 'function' ? val.bind(_adminClient) : val;
   },
 });
 
-/**
- * Public client for client-side components if needed
- */
-export const supabaseClient = createClient(
-  supabaseUrl,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let _publicClient = null;
+export const supabaseClient = new Proxy({}, {
+  get(target, prop) {
+    if (!_publicClient) {
+      _publicClient = createPublic();
+    }
+    const val = _publicClient[prop];
+    return typeof val === 'function' ? val.bind(_publicClient) : val;
+  },
+});
 
 /**
  * Log action into activity_logs table
