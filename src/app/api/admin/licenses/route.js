@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin, logActivity } from '@/lib/supabase';
 import { getAuthenticatedAdmin, getClientIp } from '@/lib/auth';
-import { generateLicenseKey } from '@/lib/crypto';
+import { generateLicenseKey, applyLicenseMask } from '@/lib/crypto';
 
 /**
  * GET /api/admin/licenses
@@ -68,12 +68,38 @@ export async function POST(req) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const count = Math.min(Math.max(parseInt(body.count || '1', 10), 1), 100); // 1-100 max bulk
-    const prefix = (body.prefix || 'XBOY').trim();
-    const durationDays = parseInt(body.duration_days ?? '30', 10);
+    const count = Math.min(Math.max(parseInt(body.amount || body.count || '1', 10), 1), 100);
     const maxDevices = Math.max(parseInt(body.max_devices || '1', 10), 1);
     const note = body.note || null;
     const productId = body.product_id || 'panel-aimbot-xboy';
+
+    // Mask parameters
+    const mask = (body.mask || (body.prefix ? `${body.prefix}-****-****-****` : '*****-*****-*****-*****-*****')).trim();
+    const lowercase = body.lowercase !== undefined ? Boolean(body.lowercase) : true;
+    const capital = body.capital !== undefined ? Boolean(body.capital) : true;
+
+    // Calculate duration in days
+    const dur = parseFloat(body.duration ?? body.duration_days ?? 1);
+    const unit = body.expiry_unit || 'Days';
+    let durationDays = 30;
+
+    if (unit === 'Lifetime' || dur === 0) {
+      durationDays = 0;
+    } else if (unit === 'Seconds') {
+      durationDays = Math.max(1, Math.round(dur / 86400));
+    } else if (unit === 'Minutes') {
+      durationDays = Math.max(1, Math.round(dur / 1440));
+    } else if (unit === 'Hours') {
+      durationDays = Math.max(1, Math.round(dur / 24));
+    } else if (unit === 'Days') {
+      durationDays = Math.max(1, Math.round(dur));
+    } else if (unit === 'Weeks') {
+      durationDays = Math.max(1, Math.round(dur * 7));
+    } else if (unit === 'Months') {
+      durationDays = Math.max(1, Math.round(dur * 30));
+    } else if (unit === 'Years') {
+      durationDays = Math.max(1, Math.round(dur * 365));
+    }
 
     // Verify product exists
     const { data: product } = await supabaseAdmin
@@ -88,9 +114,10 @@ export async function POST(req) {
 
     const newLicenses = [];
     for (let i = 0; i < count; i++) {
+      const licenseKey = applyLicenseMask(mask, { lowercase, uppercase: capital });
       newLicenses.push({
         product_id: productId,
-        license_key: generateLicenseKey(prefix),
+        license_key: licenseKey,
         duration_days: durationDays,
         status: 'unused',
         max_devices: maxDevices,
@@ -107,10 +134,11 @@ export async function POST(req) {
 
     if (error) throw error;
 
-    await logActivity('LICENSE_GENERATED', `Generated ${count} license(s) by ${admin.username}`, {
+    await logActivity('LICENSE_GENERATED', `Generated ${count} license(s) by ${admin.username} [mask: ${mask}]`, {
       count,
-      prefix,
+      mask,
       durationDays,
+      unit,
       productId,
     }, ip);
 

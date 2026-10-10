@@ -77,13 +77,16 @@ export default function DashboardPage() {
   const [newAppName, setNewAppName] = useState('');
   const [renameAppName, setRenameAppName] = useState('');
 
-  // Generator Form state
-  const [genCount, setGenCount] = useState(1);
-  const [genPrefix, setGenPrefix] = useState('XBOY');
-  const [genDuration, setGenDuration] = useState(30);
-  const [genMaxDevices, setGenMaxDevices] = useState(1);
-  const [genProduct, setGenProduct] = useState('');
+  // Generator Form state (KeyAuth Photo 2 format)
+  const [genAmount, setGenAmount] = useState(1);
+  const [genMask, setGenMask] = useState('caxs-******');
+  const [genLowercase, setGenLowercase] = useState(true);
+  const [genCapital, setGenCapital] = useState(true);
+  const [genLevel, setGenLevel] = useState('1 (default)');
   const [genNote, setGenNote] = useState('');
+  const [genExpiryUnit, setGenExpiryUnit] = useState('Days');
+  const [genDuration, setGenDuration] = useState(1);
+  const [genProduct, setGenProduct] = useState('');
 
   // Extend Form state
   const [extendDays, setExtendDays] = useState(30);
@@ -471,12 +474,15 @@ Private Shared url As String = "${serverUrl}"`,
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          count: genCount,
-          prefix: genPrefix,
-          duration_days: genDuration,
-          max_devices: genMaxDevices,
-          product_id: genProduct || currentApp.id,
+          amount: genAmount,
+          mask: genMask || 'caxs-******',
+          lowercase: genLowercase,
+          capital: genCapital,
+          level: genLevel,
           note: genNote,
+          expiry_unit: genExpiryUnit,
+          duration: genDuration,
+          product_id: genProduct || currentApp.id,
         }),
       });
       const data = await res.json();
@@ -1476,8 +1482,27 @@ Private Shared url As String = "${serverUrl}"`,
 
       {/* 1. Create App Modal */}
       {showCreateAppModal && (
-        <div className="modal-backdrop">
-          <div className="glass-card modal-content" style={{ maxWidth: 480 }}>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: 16
+          }}
+        >
+          <div className="glass-card modal-content" style={{ maxWidth: 480, margin: 'auto' }}>
             <div className="modal-header">
               <h3>Create A New Application</h3>
               <button onClick={() => setShowCreateAppModal(false)} className="btn-icon"><X size={18} /></button>
@@ -1520,8 +1545,27 @@ Private Shared url As String = "${serverUrl}"`,
 
       {/* 2. Rename App Modal */}
       {showRenameAppModal && (
-        <div className="modal-backdrop">
-          <div className="glass-card modal-content" style={{ maxWidth: 480 }}>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: 16
+          }}
+        >
+          <div className="glass-card modal-content" style={{ maxWidth: 480, margin: 'auto' }}>
             <div className="modal-header">
               <h3>Rename Application</h3>
               <button onClick={() => setShowRenameAppModal(false)} className="btn-icon"><X size={18} /></button>
@@ -1550,8 +1594,27 @@ Private Shared url As String = "${serverUrl}"`,
 
       {/* 3. Pause / Unpause App Modal */}
       {showPauseAppModal && (
-        <div className="modal-backdrop">
-          <div className="glass-card modal-content" style={{ maxWidth: 480 }}>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: 16
+          }}
+        >
+          <div className="glass-card modal-content" style={{ maxWidth: 480, margin: 'auto' }}>
             <div className="modal-header">
               <h3>{currentApp.paused ? 'Unpause Application & Users' : 'Pause Application & Users'}</h3>
               <button onClick={() => setShowPauseAppModal(false)} className="btn-icon"><X size={18} /></button>
@@ -1592,8 +1655,27 @@ Private Shared url As String = "${serverUrl}"`,
 
       {/* 4. Delete App Modal */}
       {showDeleteAppModal && (
-        <div className="modal-backdrop">
-          <div className="glass-card modal-content" style={{ maxWidth: 480 }}>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: 16
+          }}
+        >
+          <div className="glass-card modal-content" style={{ maxWidth: 480, margin: 'auto' }}>
             <div className="modal-header">
               <h3 style={{ color: '#ef4444' }}>Delete Application</h3>
               <button onClick={() => setShowDeleteAppModal(false)} className="btn-icon"><X size={18} /></button>
@@ -1628,100 +1710,200 @@ Private Shared url As String = "${serverUrl}"`,
         </div>
       )}
 
-      {/* 5. Generate License Modal */}
+      {/* 5. Add Licenses Modal (Exact 1:1 Replica Photo 2) */}
       {showGenerateModal && (
-        <div className="modal-backdrop">
-          <div className="glass-card modal-content" style={{ maxWidth: 540 }}>
-            <div className="modal-header">
-              <h3>Generate License Key Baru</h3>
-              <button onClick={() => { setShowGenerateModal(false); setGeneratedResult(null); }} className="btn-icon">
-                <X size={18} />
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: 16,
+            margin: 0
+          }}
+        >
+          <div
+            className="modal-content"
+            style={{
+              width: '100%',
+              maxWidth: 460,
+              background: '#13161f',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: 12,
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9)',
+              overflow: 'hidden',
+              margin: 'auto'
+            }}
+          >
+            <div className="modal-header" style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', margin: 0 }}>Add Licenses</h3>
+              <button
+                type="button"
+                onClick={() => { setShowGenerateModal(false); setGeneratedResult(null); }}
+                className="btn-icon"
+                style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+              >
+                <X size={20} />
               </button>
             </div>
 
             {!generatedResult ? (
               <form onSubmit={handleGenerateLicenses}>
-                <div className="modal-body">
-                  <div className="form-group">
-                    <label className="form-label">Aplikasi / Produk</label>
-                    <select
-                      className="select"
-                      value={genProduct}
-                      onChange={(e) => setGenProduct(e.target.value)}
-                    >
-                      {products.map((p) => (
-                        <option key={p.id} value={p.id}>{p.name}</option>
-                      ))}
-                    </select>
+                <div className="modal-body" style={{ padding: '20px 24px' }}>
+                  {/* Amount */}
+                  <div className="form-group" style={{ marginBottom: 14 }}>
+                    <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
+                      Amount:
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      required
+                      className="input"
+                      value={genAmount}
+                      onChange={(e) => setGenAmount(parseInt(e.target.value) || 1)}
+                      style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
+                    />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    <div className="form-group">
-                      <label className="form-label">Jumlah Kunci (1-100)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="100"
-                        className="input"
-                        value={genCount}
-                        onChange={(e) => setGenCount(parseInt(e.target.value) || 1)}
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Prefix Kunci</label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="XBOY"
-                        value={genPrefix}
-                        onChange={(e) => setGenPrefix(e.target.value.toUpperCase())}
-                      />
-                    </div>
+                  {/* Key Mask */}
+                  <div className="form-group" style={{ marginBottom: 10 }}>
+                    <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
+                      Key Mask:
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      className="input"
+                      placeholder="Using * will assign a random character."
+                      value={genMask}
+                      onChange={(e) => setGenMask(e.target.value)}
+                      style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff', fontFamily: 'var(--font-mono)' }}
+                    />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    <div className="form-group">
-                      <label className="form-label">Durasi (Hari, 0 = Lifetime)</label>
+                  {/* Checkboxes Row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 24, margin: '12px 0 16px 0' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.875rem', color: '#fff' }}>
                       <input
-                        type="number"
-                        min="0"
-                        className="input"
-                        value={genDuration}
-                        onChange={(e) => setGenDuration(parseInt(e.target.value) || 0)}
+                        type="checkbox"
+                        checked={genLowercase}
+                        onChange={(e) => setGenLowercase(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: '#2563eb', cursor: 'pointer' }}
                       />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Maksimal Device (HWID)</label>
+                      <span>Lowercase Letters</span>
+                    </label>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.875rem', color: '#fff' }}>
                       <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        className="input"
-                        value={genMaxDevices}
-                        onChange={(e) => setGenMaxDevices(parseInt(e.target.value) || 1)}
+                        type="checkbox"
+                        checked={genCapital}
+                        onChange={(e) => setGenCapital(e.target.checked)}
+                        style={{ width: 16, height: 16, accentColor: '#2563eb', cursor: 'pointer' }}
                       />
-                    </div>
+                      <span>Capital Letters</span>
+                    </label>
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Catatan Admin (Opsional)</label>
+                  {/* License Level */}
+                  <div className="form-group" style={{ marginBottom: 14 }}>
+                    <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
+                      License Level:
+                    </label>
                     <input
                       type="text"
                       className="input"
-                      placeholder="Contoh: Reseller Discord / VIP Client"
+                      value={genLevel}
+                      onChange={(e) => setGenLevel(e.target.value)}
+                      style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
+                    />
+                  </div>
+
+                  {/* License Note */}
+                  <div className="form-group" style={{ marginBottom: 14 }}>
+                    <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
+                      License Note:
+                    </label>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Optional, e.g. this license was for Joe"
                       value={genNote}
                       onChange={(e) => setGenNote(e.target.value)}
+                      style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
+                    />
+                  </div>
+
+                  {/* License Expiry Unit */}
+                  <div className="form-group" style={{ marginBottom: 14 }}>
+                    <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
+                      License Expiry Unit:
+                    </label>
+                    <select
+                      className="select"
+                      value={genExpiryUnit}
+                      onChange={(e) => setGenExpiryUnit(e.target.value)}
+                      style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
+                    >
+                      <option value="Days">Days</option>
+                      <option value="Seconds">Seconds</option>
+                      <option value="Minutes">Minutes</option>
+                      <option value="Hours">Hours</option>
+                      <option value="Weeks">Weeks</option>
+                      <option value="Months">Months</option>
+                      <option value="Years">Years</option>
+                      <option value="Lifetime">Lifetime</option>
+                    </select>
+                  </div>
+
+                  {/* License Duration */}
+                  <div className="form-group" style={{ marginBottom: 8 }}>
+                    <label className="form-label" style={{ color: '#fff', fontWeight: 600, fontSize: '0.875rem', marginBottom: 6 }}>
+                      License Duration:
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      required
+                      className="input"
+                      value={genDuration}
+                      onChange={(e) => setGenDuration(parseInt(e.target.value) || 0)}
+                      style={{ background: '#1c202c', border: '1px solid #282f42', color: '#fff' }}
                     />
                   </div>
                 </div>
-                <div className="modal-footer">
-                  <button type="button" onClick={() => setShowGenerateModal(false)} className="btn btn-secondary">Batal</button>
-                  <button type="submit" className="btn btn-primary">Generate Sekarang</button>
+
+                <div className="modal-footer" style={{ padding: '16px 24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowGenerateModal(false)}
+                    className="btn-close-modal"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-add-modal"
+                  >
+                    Add
+                  </button>
                 </div>
               </form>
             ) : (
               <div>
-                <div className="modal-body">
+                <div className="modal-body" style={{ padding: '20px 24px' }}>
                   <div style={{
                     padding: 14,
                     background: 'rgba(16, 185, 129, 0.1)',
@@ -1749,6 +1931,7 @@ Private Shared url As String = "${serverUrl}"`,
                           {lic.license_key}
                         </code>
                         <button
+                          type="button"
                           onClick={() => copyText(lic.license_key, 'License Key')}
                           className="btn btn-secondary btn-icon"
                           style={{ width: 28, height: 28 }}
@@ -1759,8 +1942,9 @@ Private Shared url As String = "${serverUrl}"`,
                     ))}
                   </div>
                 </div>
-                <div className="modal-footer">
+                <div className="modal-footer" style={{ padding: '16px 24px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
                   <button
+                    type="button"
                     onClick={() => {
                       const allKeys = generatedResult.map((k) => k.license_key).join('\n');
                       copyText(allKeys, 'Semua Kunci');
@@ -1769,7 +1953,11 @@ Private Shared url As String = "${serverUrl}"`,
                   >
                     <Copy size={14} /> Salin Semua Kunci
                   </button>
-                  <button onClick={() => { setShowGenerateModal(false); setGeneratedResult(null); }} className="btn btn-primary">
+                  <button
+                    type="button"
+                    onClick={() => { setShowGenerateModal(false); setGeneratedResult(null); }}
+                    className="btn-close-modal"
+                  >
                     Selesai
                   </button>
                 </div>
@@ -1781,8 +1969,27 @@ Private Shared url As String = "${serverUrl}"`,
 
       {/* 6. Extend Duration Modal */}
       {showExtendModal && selectedLicense && (
-        <div className="modal-backdrop">
-          <div className="glass-card modal-content" style={{ maxWidth: 440 }}>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: 16
+          }}
+        >
+          <div className="glass-card modal-content" style={{ maxWidth: 440, margin: 'auto' }}>
             <div className="modal-header">
               <h3>Perpanjang Durasi Lisensi</h3>
               <button onClick={() => setShowExtendModal(false)} className="btn-icon"><X size={18} /></button>
@@ -1818,8 +2025,27 @@ Private Shared url As String = "${serverUrl}"`,
 
       {/* 7. Bot Setup Modals (Discord, Telegram, Shop) */}
       {showBotModal && (
-        <div className="modal-backdrop">
-          <div className="glass-card modal-content" style={{ maxWidth: 540 }}>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: 16
+          }}
+        >
+          <div className="glass-card modal-content" style={{ maxWidth: 540, margin: 'auto' }}>
             <div className="modal-header">
               <h3>
                 {showBotModal === 'discord' && 'Integrasi Discord Bot'}

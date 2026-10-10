@@ -32,6 +32,36 @@ export function verifyPassword(password, salt, expectedHash) {
 }
 
 /**
+ * Applies KeyAuth-style masking where each '*' is replaced by a random character
+ * from the selected character space (lowercase, capital, digits).
+ * Non-asterisk characters (e.g. 'caxs-', 'XBOY-', '-') remain exactly as typed.
+ */
+export function applyLicenseMask(mask = '*****-*****-*****-*****-*****', { lowercase = true, uppercase = true } = {}) {
+  let keyspace = '';
+  if (lowercase && uppercase) {
+    keyspace = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  } else if (uppercase) {
+    keyspace = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  } else if (lowercase) {
+    keyspace = '0123456789abcdefghijklmnopqrstuvwxyz';
+  } else {
+    keyspace = '0123456789';
+  }
+
+  if (!mask || !mask.includes('*')) {
+    return mask || 'CAXS-KEY-AUTH';
+  }
+
+  const bytes = crypto.randomBytes(mask.length * 4);
+  let byteIndex = 0;
+
+  return mask.replace(/\*/g, () => {
+    const rand = bytes[byteIndex++ % bytes.length];
+    return keyspace[rand % keyspace.length];
+  });
+}
+
+/**
  * Generate secure random license key (Format: PREFIX-XXXX-XXXX-XXXX)
  * Uses unambiguous characters (A-Z, 2-9)
  */
