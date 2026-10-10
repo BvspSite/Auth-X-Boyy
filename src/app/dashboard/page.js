@@ -26,7 +26,8 @@ import {
   CheckCircle2,
   X,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Code2
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -43,6 +44,10 @@ export default function DashboardPage() {
   const [licenses, setLicenses] = useState([]);
   const [products, setProducts] = useState([]);
   const [logs, setLogs] = useState([]);
+
+  // Examples language and app state
+  const [selectedLang, setSelectedLang] = useState('csharp');
+  const [selectedExampleApp, setSelectedExampleApp] = useState('');
 
   // Filters
   const [searchKey, setSearchKey] = useState('');
@@ -130,8 +135,9 @@ export default function DashboardPage() {
       const data = await res.json();
       if (data.success) {
         setProducts(data.products || []);
-        if (data.products && data.products.length > 0 && !genProduct) {
-          setGenProduct(data.products[0].id);
+        if (data.products && data.products.length > 0) {
+          if (!genProduct) setGenProduct(data.products[0].id);
+          if (!selectedExampleApp) setSelectedExampleApp(data.products[0].id);
         }
       }
     } catch (e) {}
@@ -427,9 +433,9 @@ export default function DashboardPage() {
           {[
             { id: 'overview', label: 'Overview', icon: Activity },
             { id: 'licenses', label: `Lisensi (${licenses.length})`, icon: KeyRound },
-            { id: 'products', label: `Produk (${products.length})`, icon: Layers },
+            { id: 'products', label: `Manage App (${products.length})`, icon: Layers },
+            { id: 'examples', label: 'Application Examples', icon: Code2 },
             { id: 'logs', label: 'Audit Logs', icon: Terminal },
-            { id: 'api-docs', label: 'API & C++ Guide', icon: ExternalLink },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -898,56 +904,354 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* ===================== TAB 5: API & C++ GUIDE ===================== */}
-        {activeTab === 'api-docs' && (
-          <div style={{ maxWidth: 960 }}>
-            <h3 style={{ fontSize: '1.4rem', marginBottom: 12 }}>Panduan Integrasi API & C++ Loader</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>
-              Gunakan endpoint berikut untuk menghubungkan loader C++, program C#, Python, atau website ke server AUTH-X-BOY.
-            </p>
+        {/* ===================== TAB 5: APPLICATION EXAMPLES ===================== */}
+        {activeTab === 'examples' && (() => {
+          const currentApp = products.find((p) => p.id === selectedExampleApp) || products[0] || {
+            id: 'panel-aimbot-xboy',
+            name: 'PANEL AIMBOT XBOY',
+          };
+          const appName = currentApp.name;
+          const appId = currentApp.id;
+          const appSecret = 'authcaxs-v1-secret';
+          const appVersion = '1.0';
+          const serverUrl = 'https://authcaxs.vercel.app';
 
-            <div className="glass-card" style={{ padding: 24, marginBottom: 24 }}>
-              <h4 style={{ fontSize: '1.1rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Terminal size={18} color="var(--accent-blue)" /> Endpoint Aktivasi Lisensi
-              </h4>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 10 }}>
-                Dipanggil saat client memasukkan License Key di loader:
-              </p>
-              <pre className="code-box" style={{ marginBottom: 16 }}>
-                <code>POST /api/license/activate
-Content-Type: application/json
+          const languageSnippets = {
+            csharp: {
+              name: 'C#',
+              code: `public static api KeyAuthApp = new api(
+    name: "${appName}",
+    ownerid: "${appId}",
+    secret: "${appSecret}",
+    version: "${appVersion}",
+    url: "${serverUrl}"
+);`,
+              github: 'https://github.com/KeyAuth/KeyAuth-CSHARP-Example',
+              unityGithub: 'https://github.com/KeyAuth/KeyAuth-Unity-Example',
+            },
+            cpp: {
+              name: 'C++',
+              code: `std::string name = "${appName}";
+std::string ownerid = "${appId}";
+std::string secret = "${appSecret}";
+std::string version = "${appVersion}";
+std::string url = "${serverUrl}"; // Server URL AUTH-X-BOY
 
-&#123;
-  &quot;license_key&quot;: &quot;XBOY-XXXX-XXXX-XXXX&quot;,
-  &quot;hwid&quot;: &quot;13cba038-77ae-11f1-8a23-806e6f6e6963&quot;
-&#125;</code>
-              </pre>
+KeyAuth::api KeyAuthApp(name, ownerid, secret, version, url);`,
+              github: 'https://github.com/KeyAuth/KeyAuth-CPP-Example',
+            },
+            python: {
+              name: 'Python',
+              code: `keyauthapp = api(
+    name = "${appName}",
+    ownerid = "${appId}",
+    secret = "${appSecret}",
+    version = "${appVersion}",
+    url = "${serverUrl}"
+)`,
+              github: 'https://github.com/KeyAuth/KeyAuth-Python-Example',
+            },
+            php: {
+              name: 'PHP',
+              code: `$name = "${appName}";
+$ownerid = "${appId}";
+$secret = "${appSecret}";
+$version = "${appVersion}";
+$url = "${serverUrl}";`,
+              github: 'https://github.com/KeyAuth/KeyAuth-PHP-Example',
+            },
+            js: {
+              name: 'JavaScript',
+              code: `const KeyAuthApp = new KeyAuth(
+    "${appName}",
+    "${appId}",
+    "${appSecret}",
+    "${appVersion}",
+    "${serverUrl}"
+);`,
+              github: 'https://github.com/mazkdevf/KeyAuth-JS-Example',
+            },
+            java: {
+              name: 'Java',
+              code: `private static String appname = "${appName}";
+private static String ownerid = "${appId}";
+private static String secret = "${appSecret}";
+private static String version = "${appVersion}";
+private static String url = "${serverUrl}";`,
+              github: 'https://github.com/KeyAuth-Archive/KeyAuth-JAVA-api',
+            },
+            vb: {
+              name: 'VB.Net',
+              code: `Private Shared name As String = "${appName}"
+Private Shared ownerid As String = "${appId}"
+Private Shared secret As String = "${appSecret}"
+Private Shared version As String = "${appVersion}"
+Private Shared url As String = "${serverUrl}"`,
+              github: 'https://github.com/KeyAuth/KeyAuth-VB-Example',
+            },
+            rust: {
+              name: 'Rust',
+              code: `let mut keyauthapp = keyauth::KeyauthApi::new(
+    "${appName}",
+    "${appId}",
+    "${appSecret}",
+    "${appVersion}",
+    "${serverUrl}",
+);`,
+              github: 'https://github.com/KeyAuth/KeyAuth-Rust-Example',
+            },
+            go: {
+              name: 'Go',
+              code: `var KeyAuthApp = keyauth.New(
+    "${appName}",
+    "${appId}",
+    "${appSecret}",
+    "${appVersion}",
+    "${serverUrl}",
+)`,
+              github: 'https://github.com/KeyAuth/KeyAuth-Go-Example',
+            },
+            lua: {
+              name: 'Lua',
+              code: `local KeyAuthApp = KeyAuth.new(
+    "${appName}",
+    "${appId}",
+    "${appSecret}",
+    "${appVersion}",
+    "${serverUrl}"
+)`,
+              github: 'https://github.com/KeyAuth/KeyAuth-Lua-Example',
+            },
+            ruby: {
+              name: 'Ruby',
+              code: `keyauthapp = KeyAuth.new(
+    "${appName}",
+    "${appId}",
+    "${appSecret}",
+    "${appVersion}",
+    "${serverUrl}"
+)`,
+              github: 'https://github.com/KeyAuth/KeyAuth-Ruby-Example',
+            },
+            perl: {
+              name: 'Perl',
+              code: `my $keyauth = KeyAuth->new(
+    name => "${appName}",
+    ownerid => "${appId}",
+    secret => "${appSecret}",
+    version => "${appVersion}",
+    url => "${serverUrl}"
+);`,
+              github: 'https://github.com/KeyAuth/KeyAuth-Perl-Example',
+            },
+          };
 
-              <h5 style={{ fontSize: '0.9rem', marginBottom: 8, color: '#34d399' }}>Respon Sukses (HTTP 200):</h5>
-              <pre className="code-box">
-                <code>&#123;
-  &quot;success&quot;: true,
-  &quot;message&quot;: &quot;License berhasil diaktivasi!&quot;,
-  &quot;product_id&quot;: &quot;panel-aimbot-xboy&quot;,
-  &quot;duration_days&quot;: 30,
-  &quot;expires_at&quot;: &quot;2026-11-10T03:45:09.479Z&quot;,
-  &quot;status&quot;: &quot;active&quot;
-&#125;</code>
-              </pre>
+          const activeSnippet = languageSnippets[selectedLang] || languageSnippets.csharp;
+
+          return (
+            <div>
+              {/* Header & Product Switcher */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 16,
+                marginBottom: 20
+              }}>
+                <div>
+                  <h3 style={{ fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Code2 size={22} color="var(--accent-blue)" /> Application Examples
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    Pilih bahasa pemrograman dan salin kredensial inisialisasi aplikasi Anda.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Pilih Aplikasi:</span>
+                  <select
+                    className="select"
+                    style={{ width: 'auto', minWidth: 220 }}
+                    value={selectedExampleApp}
+                    onChange={(e) => setSelectedExampleApp(e.target.value)}
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.id})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Main Card */}
+              <div className="glass-card" style={{ padding: 0, overflow: 'hidden', marginBottom: 24 }}>
+                {/* Language Tabs Pill Bar */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: '#0a0e1a',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  padding: '8px 12px',
+                  gap: 6,
+                  overflowX: 'auto'
+                }}>
+                  {[
+                    { id: 'csharp', label: 'C#' },
+                    { id: 'cpp', label: 'C++' },
+                    { id: 'python', label: 'Python' },
+                    { id: 'php', label: 'PHP' },
+                    { id: 'js', label: 'JavaScript' },
+                    { id: 'java', label: 'Java' },
+                    { id: 'vb', label: 'VB.Net' },
+                    { id: 'rust', label: 'Rust' },
+                    { id: 'go', label: 'Go' },
+                    { id: 'lua', label: 'Lua' },
+                    { id: 'ruby', label: 'Ruby' },
+                    { id: 'perl', label: 'Perl' },
+                  ].map((lang) => {
+                    const isSelected = selectedLang === lang.id;
+                    return (
+                      <button
+                        key={lang.id}
+                        onClick={() => setSelectedLang(lang.id)}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: 8,
+                          fontSize: '0.85rem',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          border: isSelected ? '1px solid var(--accent-blue)' : '1px solid transparent',
+                          background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                          color: isSelected ? 'var(--accent-blue)' : 'var(--text-muted)',
+                          transition: 'all 0.15s ease',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {lang.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Code Box Area */}
+                <div style={{ padding: 24, background: '#070a12' }}>
+                  <pre
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.6,
+                      color: '#e2e8f0',
+                      background: '#04060c',
+                      padding: 20,
+                      borderRadius: 10,
+                      border: '1px solid var(--border-subtle)',
+                      overflowX: 'auto',
+                      marginBottom: 16
+                    }}
+                  >
+                    <code>{activeSnippet.code}</code>
+                  </pre>
+
+                  {/* Action Buttons */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => copyToClipboard(activeSnippet.code, `Kredensial ${activeSnippet.name}`)}
+                      className="btn btn-primary btn-sm"
+                      style={{ padding: '8px 16px' }}
+                    >
+                      <Copy size={14} /> Copy Credentials
+                    </button>
+
+                    {activeSnippet.github && (
+                      <a
+                        href={activeSnippet.github}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '8px 16px' }}
+                      >
+                        <ExternalLink size={14} /> View {activeSnippet.name} Example
+                      </a>
+                    )}
+
+                    {activeSnippet.unityGithub && (
+                      <a
+                        href={activeSnippet.unityGithub}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '8px 16px' }}
+                      >
+                        <ExternalLink size={14} /> View Unity Example
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                {/* Yellow / Amber Notice Banner matching KeyAuth */}
+                <div style={{
+                  padding: '14px 20px',
+                  background: 'rgba(245, 158, 11, 0.08)',
+                  borderTop: '1px solid rgba(245, 158, 11, 0.25)',
+                  fontSize: '0.85rem',
+                  color: '#fbbf24',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 12
+                }}>
+                  <div>
+                    <strong>Hosting Server URL:</strong>{' '}
+                    <code style={{ background: 'rgba(0,0,0,0.4)', padding: '2px 6px', borderRadius: 4 }}>
+                      {serverUrl}
+                    </code>
+                  </div>
+                  <div>
+                    <strong>GitHub Examples:</strong>{' '}
+                    <a
+                      href="https://github.com/KeyAuth"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#fbbf24', textDecoration: 'underline' }}
+                    >
+                      https://github.com/KeyAuth
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Loader Auth C++ Direct Guide */}
+              <div className="glass-card" style={{ padding: 24 }}>
+                <h4 style={{ fontSize: '1.1rem', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Terminal size={18} color="var(--accent-blue)" /> Penerapan di C++ Loader (Auth-X-Boy)
+                </h4>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: 14 }}>
+                  Untuk Loader Auth C++ Anda, pastikan file konfigurasi <code>auth_url.txt</code> di sebelah file <code>.exe</code> berisi:
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <code style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    background: '#04060c',
+                    border: '1px solid var(--border-subtle)',
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--accent-blue)',
+                    fontSize: '0.9rem'
+                  }}>
+                    {serverUrl}
+                  </code>
+                  <button onClick={() => copyToClipboard(serverUrl, 'Server URL')} className="btn btn-secondary btn-sm">
+                    <Copy size={13} /> Salin URL
+                  </button>
+                </div>
+                <p style={{ color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                  Loader akan otomatis mengirimkan POST request ke <code>{serverUrl}/api/license/activate</code> dengan parameter <code>license_key</code> dan <code>hwid</code>.
+                </p>
+              </div>
             </div>
-
-            <div className="glass-card" style={{ padding: 24 }}>
-              <h4 style={{ fontSize: '1.1rem', marginBottom: 12 }}>Koneksi ke Loader Auth C++</h4>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: 12 }}>
-                Pada file <code>Loader Auth/src/auth/keyauth.cpp</code> atau <code>auth_url.txt</code>, cukup atur URL server ke domain Next.js / Vercel Anda:
-              </p>
-              <pre className="code-box">
-                <code>// auth_url.txt di folder EXE loader:
-https://your-domain.vercel.app</code>
-              </pre>
-            </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* ===================== MODAL: GENERATE LICENSES ===================== */}

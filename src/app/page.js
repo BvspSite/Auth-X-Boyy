@@ -41,7 +41,7 @@ export default function HomePage() {
 #include "json.hpp" // nlohmann/json
 
 bool ActivateLicense(const std::string& key, const std::string& hwid) {
-    std::string endpoint = "https://your-domain.vercel.app/api/license/activate";
+    std::string endpoint = "https://authcaxs.vercel.app/api/license/activate";
     nlohmann::json payload = {
         {"license_key", key},
         {"hwid", hwid}
@@ -51,7 +51,7 @@ bool ActivateLicense(const std::string& key, const std::string& hwid) {
     return true;
 }`;
 
-  const sampleCurlCode = `curl -X POST "https://your-domain.vercel.app/api/license/activate" \\
+  const sampleCurlCode = `curl -X POST "https://authcaxs.vercel.app/api/license/activate" \\
   -H "Content-Type: application/json" \\
   -d '{
     "license_key": "CAXS-CQXM-VBQ4-2WV3",
