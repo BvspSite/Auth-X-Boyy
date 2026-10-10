@@ -23,6 +23,13 @@ import {
   Clock,
   Terminal,
   User,
+  Users,
+  Crown,
+  Shield,
+  Lock,
+  UserPlus,
+  Monitor,
+  Laptop,
   CheckCircle2,
   X,
   ExternalLink,
@@ -77,6 +84,29 @@ export default function DashboardPage() {
   const [searchKey, setSearchKey] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [productFilter, setProductFilter] = useState('');
+
+  // Users & Monitoring State
+  const [systemUsers, setSystemUsers] = useState([]);
+  const [monitoredDevices, setMonitoredDevices] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+  const [deletingUserId, setDeletingUserId] = useState(null);
+  const [resettingDeviceId, setResettingDeviceId] = useState(null);
+
+  // User Modals & Forms
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [selectedUserToEdit, setSelectedUserToEdit] = useState(null);
+  const [newUsername, setNewUsername] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState('admin');
+  const [editUserRole, setEditUserRole] = useState('admin');
+  const [editUserPassword, setEditUserPassword] = useState('');
+
+  // Device Monitoring Filters
+  const [deviceSearch, setDeviceSearch] = useState('');
+  const [deviceProductFilter, setDeviceProductFilter] = useState('');
 
   // Modals state
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -148,7 +178,7 @@ export default function DashboardPage() {
         }
       } catch (e) {}
 
-      await Promise.all([loadStats(), loadLicenses(activePid), loadLogs()]);
+      await Promise.all([loadStats(), loadLicenses(activePid), loadLogs(), loadUsersData()]);
     } finally {
       setLoading(false);
     }
@@ -210,11 +240,26 @@ export default function DashboardPage() {
     } catch (e) {}
   };
 
+  const loadUsersData = async () => {
+    setLoadingUsers(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      if (data.success) {
+        setSystemUsers(data.users || []);
+        setMonitoredDevices(data.devices || []);
+      }
+    } catch (e) {
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
   // Header refresh with spin animation
   const handleHeaderRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([loadStats(), loadProducts(), loadLicenses(), loadLogs()]);
+      await Promise.all([loadStats(), loadProducts(), loadLicenses(), loadLogs(), loadUsersData()]);
       showToast('Data berhasil diperbarui!');
     } catch {
       showToast('Gagal memuat ulang data', 'error');
@@ -516,8 +561,13 @@ Private Shared url As String = "${serverUrl}"`,
     }
   };
 
-  // 5. Delete App
+  // 5. Delete App (Super Admin Only)
   const handleDeleteApp = async () => {
+    if (adminUser?.role !== 'super_admin') {
+      showToast('Akses Ditolak: Hanya Super Admin yang berhak menghapus aplikasi!', 'error');
+      setShowDeleteAppModal(false);
+      return;
+    }
     setIsDeletingApp(true);
     try {
       const res = await fetch(`/api/admin/products?id=${encodeURIComponent(currentApp.id)}`, {
@@ -561,6 +611,135 @@ Private Shared url As String = "${serverUrl}"`,
       showToast('Gagal me-refresh seller key', 'error');
     } finally {
       setIsRefreshingSellerKey(false);
+    }
+  };
+
+  // USER & DEVICE ACTIONS
+  // 1. Create User (Super Admin Only)
+  const handleCreateUser = async (e) => {
+    e.preventDefault();
+    if (!newUsername.trim() || !newUserPassword.trim()) {
+      showToast('Username dan password wajib diisi!', 'error');
+      return;
+    }
+    setIsCreatingUser(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: newUsername.trim(),
+          password: newUserPassword,
+          role: newUserRole,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+        setShowAddUserModal(false);
+        setNewUsername('');
+        setNewUserPassword('');
+        setNewUserRole('admin');
+        await loadUsersData();
+      } else {
+        showToast(data.message, 'error');
+      }
+    } catch {
+      showToast('Gagal membuat user baru', 'error');
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  // 2. Edit User (Super Admin Only)
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    if (!selectedUserToEdit) return;
+    setIsUpdatingUser(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: selectedUserToEdit.id,
+          role: editUserRole,
+          new_password: editUserPassword || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+        setShowEditUserModal(false);
+        setSelectedUserToEdit(null);
+        setEditUserPassword('');
+        await loadUsersData();
+      } else {
+        showToast(data.message, 'error');
+      }
+    } catch {
+      showToast('Gagal memperbarui user', 'error');
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  };
+
+  // 3. Delete User (Super Admin Only)
+  const handleDeleteUser = async (user) => {
+    if (adminUser?.role !== 'super_admin') {
+      showToast('Akses Ditolak: Hanya Super Admin yang berhak menghapus user!', 'error');
+      return;
+    }
+    if (user.username.toLowerCase() === 'admin') {
+      showToast('Akun root "admin" dilindungi dan tidak boleh dihapus!', 'error');
+      return;
+    }
+    if (user.id === adminUser.id || user.username.toLowerCase() === adminUser.username.toLowerCase()) {
+      showToast('Anda tidak dapat menghapus akun Anda sendiri!', 'error');
+      return;
+    }
+    if (!confirm(`Yakin ingin menghapus user "${user.username}" (${user.role}) secara permanen?`)) return;
+
+    setDeletingUserId(user.id);
+    try {
+      const res = await fetch(`/api/admin/users?id=${encodeURIComponent(user.id)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+        await loadUsersData();
+      } else {
+        showToast(data.message, 'error');
+      }
+    } catch {
+      showToast('Gagal menghapus user', 'error');
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  // 4. Reset Device HWID
+  const handleResetDevice = async (device) => {
+    if (!confirm(`Reset HWID perangkat (${device.hwid.slice(0, 16)}...)? Perangkat ini akan dilepaskan dari lisensi.`)) return;
+    setResettingDeviceId(device.id);
+    try {
+      const res = await fetch('/api/license/reset-hwid', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ device_id: device.id, hwid: device.hwid }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message);
+        await loadUsersData();
+        await loadLicenses();
+      } else {
+        showToast(data.message, 'error');
+      }
+    } catch {
+      showToast('Gagal me-reset perangkat', 'error');
+    } finally {
+      setResettingDeviceId(null);
     }
   };
 
@@ -714,6 +893,20 @@ Private Shared url As String = "${serverUrl}"`,
   // Seller link formatted
   const sellerApiUrl = `${serverUrl}/api/seller?sellerkey=${currentApp.seller_key}&type=add&expiry=1&mask=******-******-******-******-******-******&level=1&amount=1&character=1&format=json`;
 
+  const isSuperAdmin = adminUser?.role === 'super_admin';
+
+  // Filtered devices for monitoring search & product filter
+  const filteredDevices = monitoredDevices.filter((dev) => {
+    const q = deviceSearch.trim().toLowerCase();
+    const matchesSearch = !q ||
+      (dev.hwid && dev.hwid.toLowerCase().includes(q)) ||
+      (dev.ip_address && dev.ip_address.toLowerCase().includes(q)) ||
+      (dev.license_key && dev.license_key.toLowerCase().includes(q)) ||
+      (dev.product_name && dev.product_name.toLowerCase().includes(q));
+    const matchesProduct = !deviceProductFilter || dev.product_id === deviceProductFilter;
+    return matchesSearch && matchesProduct;
+  });
+
   if (!adminUser) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -792,12 +985,18 @@ Private Shared url As String = "${serverUrl}"`,
               gap: 8,
               padding: '6px 14px',
               borderRadius: 'var(--radius-full)',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid var(--border-subtle)',
+              background: isSuperAdmin ? 'rgba(234, 179, 8, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+              border: isSuperAdmin ? '1px solid rgba(234, 179, 8, 0.35)' : '1px solid rgba(59, 130, 246, 0.3)',
               fontSize: '0.85rem'
             }}>
-              <span className="pulse-dot"></span>
-              <span style={{ color: 'var(--text-muted)' }}>Admin:</span>
+              {isSuperAdmin ? (
+                <Crown size={15} style={{ color: '#facc15' }} />
+              ) : (
+                <Shield size={15} style={{ color: '#60a5fa' }} />
+              )}
+              <span style={{ color: isSuperAdmin ? '#facc15' : 'var(--text-muted)', fontWeight: 600 }}>
+                {isSuperAdmin ? 'Super Admin:' : 'Admin:'}
+              </span>
               <strong style={{ color: '#fff' }}>{adminUser.username}</strong>
             </div>
 
@@ -849,6 +1048,7 @@ Private Shared url As String = "${serverUrl}"`,
             { id: 'manage_app', label: `Manage App (${products.length})`, icon: Layers },
             { id: 'licenses', label: `Lisensi (${licenses.length})`, icon: KeyRound },
             { id: 'seller', label: 'Reseller Key', icon: Bot },
+            { id: 'users', label: `Kelola User & Monitor (${systemUsers.length})`, icon: Users },
             { id: 'overview', label: 'Overview', icon: Activity },
             { id: 'logs', label: 'Audit Logs', icon: Terminal },
           ].map((tab) => {
@@ -1007,12 +1207,23 @@ Private Shared url As String = "${serverUrl}"`,
                 <span>{isRefreshingSecret ? 'Merefresh Secret...' : 'Refresh App Secret'}</span>
               </button>
 
-              <button
-                onClick={() => setShowDeleteAppModal(true)}
-                className="btn btn-red btn-sm"
-              >
-                <Trash2 size={15} /> Delete App
-              </button>
+              {isSuperAdmin ? (
+                <button
+                  onClick={() => setShowDeleteAppModal(true)}
+                  className="btn btn-red btn-sm"
+                >
+                  <Trash2 size={15} /> Delete App
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="btn btn-secondary btn-sm"
+                  style={{ opacity: 0.5, cursor: 'not-allowed', color: '#f87171' }}
+                  title="Hanya Super Admin yang berhak menghapus aplikasi"
+                >
+                  <Lock size={14} /> Delete App (Super Admin Only)
+                </button>
+              )}
             </div>
 
             {/* Table "All Application" */}
@@ -1511,6 +1722,523 @@ Private Shared url As String = "${serverUrl}"`,
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* ===================== TAB: KELOLA USER & MONITORING ===================== */}
+        {activeTab === 'users' && (
+          <div>
+            {/* Header Banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.6) 100%)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              borderRadius: 14,
+              padding: '20px 24px',
+              marginBottom: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 16
+            }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                  <Users size={22} style={{ color: '#60a5fa' }} />
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', margin: 0 }}>
+                    Manajemen User & Monitoring Perangkat
+                  </h2>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    background: isSuperAdmin ? 'rgba(234, 179, 8, 0.2)' : 'rgba(59, 130, 246, 0.2)',
+                    color: isSuperAdmin ? '#facc15' : '#93c5fd',
+                    fontWeight: 700,
+                    border: isSuperAdmin ? '1px solid rgba(234, 179, 8, 0.4)' : '1px solid rgba(59, 130, 246, 0.3)'
+                  }}>
+                    {isSuperAdmin ? '👑 Role: Super Admin (Full Privilege)' : '🛡️ Role: Admin (Standard)'}
+                  </span>
+                </div>
+                <p style={{ color: '#94a3b8', fontSize: '0.875rem', margin: 0 }}>
+                  Kelola akun administrator, atur peran dan hak akses, serta pantau seluruh perangkat client & loader yang aktif secara real-time.
+                </p>
+              </div>
+
+              {/* Action: Tambah User (Hanya Super Admin) */}
+              {isSuperAdmin ? (
+                <button
+                  onClick={() => setShowAddUserModal(true)}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, boxShadow: '0 0 15px rgba(37, 99, 235, 0.3)' }}
+                >
+                  <UserPlus size={16} />
+                  <span>+ Tambah User Baru</span>
+                </button>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  fontSize: '0.8rem',
+                  color: '#94a3b8'
+                }}>
+                  <Lock size={14} style={{ color: '#f59e0b' }} />
+                  <span>Hanya Super Admin yang dapat menambah/menghapus user</span>
+                </div>
+              )}
+            </div>
+
+            {/* Quick Stat Cards */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: 16,
+              marginBottom: 28
+            }}>
+              <div className="glass-card stat-card">
+                <div className="stat-header">
+                  <span className="stat-title">Total User Admin</span>
+                  <div className="stat-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
+                    <Users size={18} />
+                  </div>
+                </div>
+                <div className="stat-value">{systemUsers.length}</div>
+                <div className="stat-subtitle">Pengelola sistem terdaftar</div>
+              </div>
+
+              <div className="glass-card stat-card">
+                <div className="stat-header">
+                  <span className="stat-title">Super Admin</span>
+                  <div className="stat-icon" style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#facc15' }}>
+                    <Crown size={18} />
+                  </div>
+                </div>
+                <div className="stat-value" style={{ color: '#facc15' }}>
+                  {systemUsers.filter(u => u.role === 'super_admin').length}
+                </div>
+                <div className="stat-subtitle">Akses hapus user & app</div>
+              </div>
+
+              <div className="glass-card stat-card">
+                <div className="stat-header">
+                  <span className="stat-title">Admin Biasa</span>
+                  <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                    <Shield size={18} />
+                  </div>
+                </div>
+                <div className="stat-value" style={{ color: '#34d399' }}>
+                  {systemUsers.filter(u => u.role === 'admin').length}
+                </div>
+                <div className="stat-subtitle">Akses operasional lisensi</div>
+              </div>
+
+              <div className="glass-card stat-card">
+                <div className="stat-header">
+                  <span className="stat-title">Client / Perangkat Aktif</span>
+                  <div className="stat-icon" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
+                    <Monitor size={18} />
+                  </div>
+                </div>
+                <div className="stat-value" style={{ color: '#a78bfa' }}>{monitoredDevices.length}</div>
+                <div className="stat-subtitle">HWID loader terpantau</div>
+              </div>
+            </div>
+
+            {/* SECTION 1: DAFTAR USER & HAK AKSES */}
+            <div style={{
+              background: '#09090d',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: 12,
+              padding: 20,
+              marginBottom: 32
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12,
+                marginBottom: 16
+              }}>
+                <div>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
+                    Daftar User Pengelola (Admin & Super Admin)
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0' }}>
+                    Daftar akun yang memiliki akses ke dashboard AUTH-X-BOY. Super admin memiliki hak istimewa menghapus user biasa dan menghapus aplikasi.
+                  </p>
+                </div>
+                <button
+                  onClick={loadUsersData}
+                  disabled={loadingUsers}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <RefreshCw size={13} className={loadingUsers ? "animate-spin" : ""} />
+                  <span>{loadingUsers ? 'Memuat...' : 'Refresh User'}</span>
+                </button>
+              </div>
+
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ color: '#3b82f6', fontWeight: 700 }}>Username & Akun</th>
+                      <th style={{ color: '#3b82f6', fontWeight: 700 }}>Peran (Role)</th>
+                      <th style={{ color: '#3b82f6', fontWeight: 700 }}>Hak Istimewa</th>
+                      <th style={{ color: '#3b82f6', fontWeight: 700 }}>Dibuat Pada</th>
+                      <th style={{ color: '#3b82f6', fontWeight: 700 }}>Login Terakhir</th>
+                      <th style={{ color: '#3b82f6', fontWeight: 700, textAlign: 'right' }}>Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingUsers ? (
+                      <tr>
+                        <td colSpan={6}>
+                          <div className="table-loading-container">
+                            <div className="table-loading-spinner"></div>
+                            <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Memuat daftar user pengelola...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : systemUsers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: 36, color: '#64748b' }}>
+                          Tidak ada data user.
+                        </td>
+                      </tr>
+                    ) : (
+                      systemUsers.map((u) => {
+                        const isThisUserSuper = u.role === 'super_admin';
+                        const isSelf = u.id === adminUser.id || u.username.toLowerCase() === adminUser.username.toLowerCase();
+                        return (
+                          <tr key={u.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                  width: 32,
+                                  height: 32,
+                                  borderRadius: 8,
+                                  background: isThisUserSuper ? 'rgba(234, 179, 8, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                  border: isThisUserSuper ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}>
+                                  {isThisUserSuper ? <Crown size={16} color="#facc15" /> : <Shield size={16} color="#60a5fa" />}
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 700, color: '#f8fafc', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span>{u.username}</span>
+                                    {isSelf && (
+                                      <span style={{
+                                        fontSize: '0.65rem',
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        background: 'rgba(16, 185, 129, 0.2)',
+                                        color: '#34d399',
+                                        fontWeight: 600
+                                      }}>Anda</span>
+                                    )}
+                                    {u.isRoot && (
+                                      <span style={{
+                                        fontSize: '0.65rem',
+                                        padding: '1px 6px',
+                                        borderRadius: 4,
+                                        background: 'rgba(234, 179, 8, 0.2)',
+                                        color: '#facc15',
+                                        fontWeight: 600
+                                      }}>Root</span>
+                                    )}
+                                  </div>
+                                  <div style={{ fontSize: '0.72rem', color: '#64748b', fontFamily: 'var(--font-mono)' }}>
+                                    ID: {u.id.slice(0, 8)}...
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              {isThisUserSuper ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  fontSize: '0.75rem',
+                                  padding: '4px 10px',
+                                  borderRadius: 6,
+                                  background: 'rgba(234, 179, 8, 0.15)',
+                                  color: '#facc15',
+                                  border: '1px solid rgba(234, 179, 8, 0.3)',
+                                  fontWeight: 700
+                                }}>
+                                  <Crown size={12} /> SUPER ADMIN
+                                </span>
+                              ) : (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  fontSize: '0.75rem',
+                                  padding: '4px 10px',
+                                  borderRadius: 6,
+                                  background: 'rgba(59, 130, 246, 0.15)',
+                                  color: '#93c5fd',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  fontWeight: 700
+                                }}>
+                                  <Shield size={12} /> ADMIN BIASA
+                                </span>
+                              )}
+                            </td>
+                            <td>
+                              <div style={{ fontSize: '0.8rem', color: isThisUserSuper ? '#fef08a' : '#cbd5e1' }}>
+                                {isThisUserSuper
+                                  ? '✨ Hapus App, Hapus User, Kelola Lisensi & Monitor Penuh'
+                                  : '⚙️ Kelola Lisensi, Buat/Pause App, Monitor Perangkat'}
+                              </div>
+                            </td>
+                            <td style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                              {u.created_at ? new Date(u.created_at).toLocaleDateString('id-ID') : '-'}
+                            </td>
+                            <td style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                              {u.last_login_at ? new Date(u.last_login_at).toLocaleString('id-ID') : 'Belum pernah'}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                                {/* Edit / Change Password */}
+                                {isSuperAdmin && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedUserToEdit(u);
+                                      setEditUserRole(u.role);
+                                      setEditUserPassword('');
+                                      setShowEditUserModal(true);
+                                    }}
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ height: 30, padding: '0 8px' }}
+                                    title="Ubah Role atau Ganti Password"
+                                  >
+                                    <Edit2 size={13} /> Edit
+                                  </button>
+                                )}
+
+                                {/* Delete User (Super Admin only & cannot delete root or self) */}
+                                {isSuperAdmin ? (
+                                  !u.isRoot && !isSelf ? (
+                                    <button
+                                      onClick={() => handleDeleteUser(u)}
+                                      disabled={deletingUserId === u.id}
+                                      className="btn btn-secondary btn-sm"
+                                      style={{ height: 30, padding: '0 8px', color: '#ef4444' }}
+                                      title="Hapus User Pengelola"
+                                    >
+                                      {deletingUserId === u.id ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                                      <span>Hapus</span>
+                                    </button>
+                                  ) : (
+                                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontStyle: 'italic', paddingRight: 6 }}>
+                                      {u.isRoot ? 'Terkunci (Root)' : 'Akun Aktif'}
+                                    </span>
+                                  )
+                                ) : (
+                                  <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                                    Super Admin Only
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* SECTION 2: MONITORING USER PERANGKAT / LOADER CLIENT */}
+            <div style={{
+              background: '#09090d',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: 12,
+              padding: 20
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 12,
+                marginBottom: 16
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Monitor size={18} style={{ color: '#a78bfa' }} />
+                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
+                      Live Monitoring Perangkat Client & Loader ({filteredDevices.length})
+                    </h3>
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '4px 0 0' }}>
+                    Pelacakan instan HWID perangkat pengguna yang terhubung, IP Address, lisensi terkait, dan opsi Reset HWID mandiri.
+                  </p>
+                </div>
+
+                {/* Filters */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ position: 'relative', width: 220 }}>
+                    <input
+                      type="text"
+                      className="input"
+                      placeholder="Cari HWID / IP / Key..."
+                      value={deviceSearch}
+                      onChange={(e) => setDeviceSearch(e.target.value)}
+                      style={{ height: 36, paddingLeft: 32, fontSize: '0.82rem' }}
+                    />
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#64748b' }} />
+                  </div>
+
+                  <select
+                    className="select"
+                    value={deviceProductFilter}
+                    onChange={(e) => setDeviceProductFilter(e.target.value)}
+                    style={{ height: 36, minWidth: 150, fontSize: '0.82rem' }}
+                  >
+                    <option value="">Semua Aplikasi</option>
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+
+                  <button
+                    onClick={loadUsersData}
+                    disabled={loadingUsers}
+                    className="btn btn-secondary btn-sm"
+                    style={{ height: 36 }}
+                    title="Refresh Data Perangkat"
+                  >
+                    <RefreshCw size={13} className={loadingUsers ? "animate-spin" : ""} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="table-container">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th style={{ color: '#a78bfa', fontWeight: 700 }}>Perangkat (HWID)</th>
+                      <th style={{ color: '#a78bfa', fontWeight: 700 }}>IP Address</th>
+                      <th style={{ color: '#a78bfa', fontWeight: 700 }}>Aplikasi</th>
+                      <th style={{ color: '#a78bfa', fontWeight: 700 }}>License Key Terikat</th>
+                      <th style={{ color: '#a78bfa', fontWeight: 700 }}>Status Lisensi</th>
+                      <th style={{ color: '#a78bfa', fontWeight: 700 }}>Terakhir Aktif</th>
+                      <th style={{ color: '#a78bfa', fontWeight: 700, textAlign: 'right' }}>Aksi Monitoring</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loadingUsers ? (
+                      <tr>
+                        <td colSpan={7}>
+                          <div className="table-loading-container">
+                            <div className="table-loading-spinner"></div>
+                            <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Memuat live sessions perangkat...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filteredDevices.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
+                          {monitoredDevices.length === 0
+                            ? 'Belum ada perangkat client / loader yang terhubung atau melakukan aktivasi.'
+                            : 'Tidak ada perangkat yang cocok dengan filter pencarian.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredDevices.map((dev) => (
+                        <tr key={dev.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Laptop size={15} style={{ color: '#a78bfa', flexShrink: 0 }} />
+                              <span style={{
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                color: '#f1f5f9'
+                              }}>
+                                {dev.hwid}
+                              </span>
+                              <button
+                                onClick={() => copyText(dev.hwid, 'HWID')}
+                                className="btn btn-secondary btn-icon"
+                                style={{ width: 24, height: 24 }}
+                                title="Salin HWID"
+                              >
+                                <Copy size={11} />
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#94a3b8' }}>
+                              {dev.ip_address}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.85rem', color: '#38bdf8', fontWeight: 600 }}>
+                              {dev.product_name}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: '#cbd5e1' }}>
+                                {dev.license_key}
+                              </span>
+                              <button
+                                onClick={() => copyText(dev.license_key, 'License Key')}
+                                className="btn btn-secondary btn-icon"
+                                style={{ width: 24, height: 24 }}
+                                title="Salin Key"
+                              >
+                                <Copy size={11} />
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`badge badge-${dev.license_status}`}>
+                              {dev.license_status}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ fontSize: '0.82rem', color: '#cbd5e1' }}>
+                              {dev.last_used_at ? new Date(dev.last_used_at).toLocaleString('id-ID') : '-'}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                              Aktif: {dev.first_used_at ? new Date(dev.first_used_at).toLocaleDateString('id-ID') : '-'}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                              <button
+                                onClick={() => handleResetDevice(dev)}
+                                disabled={resettingDeviceId === dev.id}
+                                className="btn btn-secondary btn-sm"
+                                style={{ height: 30, padding: '0 8px', color: '#38bdf8', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                                title="Reset HWID perangkat ini agar lisensi bisa dipindah ke PC lain"
+                              >
+                                <RotateCcw size={13} className={resettingDeviceId === dev.id ? "animate-spin" : ""} />
+                                <span>{resettingDeviceId === dev.id ? 'Mereset...' : 'Reset HWID'}</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}
@@ -2359,6 +3087,283 @@ Private Shared url As String = "${serverUrl}"`,
             <div className="modal-footer">
               <button onClick={() => setShowBotModal(null)} className="btn btn-primary">Mengerti</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. Add User Modal (Super Admin Only) */}
+      {showAddUserModal && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: 16
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAddUserModal(false);
+          }}
+        >
+          <div className="glass-card" style={{ maxWidth: 480, width: '100%', padding: 28, borderRadius: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'rgba(37, 99, 235, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#60a5fa'
+                }}>
+                  <UserPlus size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff', margin: 0 }}>Tambah User Baru</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Buat akun pengelola untuk dashboard AUTH-X-BOY</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddUserModal(false)}
+                className="btn btn-secondary btn-icon"
+                style={{ width: 32, height: 32 }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser}>
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label">Username</label>
+                <input
+                  type="text"
+                  required
+                  className="input"
+                  placeholder="Contoh: moderator1, cs_support"
+                  value={newUsername}
+                  onChange={(e) => setNewUsername(e.target.value)}
+                  style={{ fontFamily: 'var(--font-mono)' }}
+                />
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Hanya huruf, angka, garis bawah, dan strip (min. 3 karakter).</span>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label">Password</label>
+                <input
+                  type="password"
+                  required
+                  className="input"
+                  placeholder="Masukkan password akun..."
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 24 }}>
+                <label className="form-label">Peran & Hak Akses (Role)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div
+                    onClick={() => setNewUserRole('admin')}
+                    style={{
+                      padding: 14,
+                      borderRadius: 10,
+                      border: newUserRole === 'admin' ? '2px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: newUserRole === 'admin' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                      cursor: 'pointer',
+                      transition: '0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#93c5fd', fontSize: '0.9rem', marginBottom: 4 }}>
+                      <Shield size={16} /> Admin Biasa
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
+                      Kelola lisensi, tambah/pause app, lihat monitoring. Tidak bisa hapus user atau hapus app.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setNewUserRole('super_admin')}
+                    style={{
+                      padding: 14,
+                      borderRadius: 10,
+                      border: newUserRole === 'super_admin' ? '2px solid #facc15' : '1px solid rgba(255, 255, 255, 0.08)',
+                      background: newUserRole === 'super_admin' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                      cursor: 'pointer',
+                      transition: '0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#facc15', fontSize: '0.9rem', marginBottom: 4 }}>
+                      <Crown size={16} /> Super Admin
+                    </div>
+                    <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: 0 }}>
+                      Akses penuh: Berhak menghapus user biasa, menghapus aplikasi, dan monitoring lengkap.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddUserModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingUser}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Plus size={16} className={isCreatingUser ? "animate-spin" : ""} />
+                  <span>{isCreatingUser ? 'Menyimpan...' : 'Simpan User'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 9. Edit User Modal */}
+      {showEditUserModal && selectedUserToEdit && (
+        <div
+          className="modal-backdrop"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            padding: 16
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowEditUserModal(false);
+          }}
+        >
+          <div className="glass-card" style={{ maxWidth: 480, width: '100%', padding: 28, borderRadius: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38bdf8'
+                }}>
+                  <Edit2 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff', margin: 0 }}>
+                    Edit User: {selectedUserToEdit.username}
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: 0 }}>Perbarui peran atau atur ulang kata sandi</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowEditUserModal(false)}
+                className="btn btn-secondary btn-icon"
+                style={{ width: 32, height: 32 }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditUser}>
+              {/* Role Selection (Only if not root admin) */}
+              {!selectedUserToEdit.isRoot ? (
+                <div className="form-group" style={{ marginBottom: 20 }}>
+                  <label className="form-label">Ubah Role Pengguna</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div
+                      onClick={() => setEditUserRole('admin')}
+                      style={{
+                        padding: 12,
+                        borderRadius: 10,
+                        border: editUserRole === 'admin' ? '2px solid #3b82f6' : '1px solid rgba(255, 255, 255, 0.08)',
+                        background: editUserRole === 'admin' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#93c5fd', fontSize: '0.88rem' }}>
+                        <Shield size={15} /> Admin Biasa
+                      </div>
+                    </div>
+
+                    <div
+                      onClick={() => setEditUserRole('super_admin')}
+                      style={{
+                        padding: 12,
+                        borderRadius: 10,
+                        border: editUserRole === 'super_admin' ? '2px solid #facc15' : '1px solid rgba(255, 255, 255, 0.08)',
+                        background: editUserRole === 'super_admin' ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.02)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#facc15', fontSize: '0.88rem' }}>
+                        <Crown size={15} /> Super Admin
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  padding: 12,
+                  borderRadius: 8,
+                  background: 'rgba(234, 179, 8, 0.1)',
+                  border: '1px solid rgba(234, 179, 8, 0.25)',
+                  marginBottom: 18,
+                  fontSize: '0.82rem',
+                  color: '#fef08a'
+                }}>
+                  Akun root &quot;admin&quot; permanen memiliki peran Super Admin.
+                </div>
+              )}
+
+              {/* Password Reset Input */}
+              <div className="form-group" style={{ marginBottom: 24 }}>
+                <label className="form-label">Ganti Password (Kosongkan jika tidak ingin diubah)</label>
+                <input
+                  type="password"
+                  className="input"
+                  placeholder="Masukkan password baru..."
+                  value={editUserPassword}
+                  onChange={(e) => setEditUserPassword(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditUserModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingUser}
+                  className="btn btn-primary"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <Check size={16} className={isUpdatingUser ? "animate-spin" : ""} />
+                  <span>{isUpdatingUser ? 'Memperbarui...' : 'Simpan Perubahan'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

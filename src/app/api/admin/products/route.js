@@ -327,6 +327,15 @@ export async function DELETE(req) {
   if (!admin) {
     return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
   }
+
+  // Privilege restriction: Only super_admin can delete applications
+  if (admin.role !== 'super_admin') {
+    return NextResponse.json({
+      success: false,
+      message: 'Akses Ditolak: Hanya akun dengan role Super Admin yang berhak menghapus aplikasi!',
+    }, { status: 403 });
+  }
+
   const ip = getClientIp(req);
 
   try {

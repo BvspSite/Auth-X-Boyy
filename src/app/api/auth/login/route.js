@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, logActivity } from '@/lib/supabase';
+import { supabaseAdmin, logActivity, getUserRolesMap } from '@/lib/supabase';
 import { verifyPassword, signAdminToken } from '@/lib/crypto';
 import { getClientIp } from '@/lib/auth';
 
@@ -67,14 +67,17 @@ export async function POST(req) {
       .update({ last_login_at: now })
       .eq('id', admin.id);
 
-    // 4. Create signed session token
+    // 4. Resolve dynamic role & create signed session token
+    const rolesMap = await getUserRolesMap();
+    const role = rolesMap[admin.username.toLowerCase()] || (admin.username.toLowerCase() === 'admin' ? 'super_admin' : 'admin');
+
     const token = signAdminToken({
       id: admin.id,
       username: admin.username,
-      role: 'admin',
+      role,
     });
 
-    await logActivity('ADMIN_LOGIN_SUCCESS', `Admin logged in: ${cleanUser}`, {}, ip);
+    await logActivity('ADMIN_LOGIN_SUCCESS', `Admin logged in: ${cleanUser} (${role})`, { role }, ip);
 
     // 5. Build response and set HTTP-only cookie
     const response = NextResponse.json({
@@ -83,6 +86,7 @@ export async function POST(req) {
       user: {
         id: admin.id,
         username: admin.username,
+        role,
       },
       token,
     });

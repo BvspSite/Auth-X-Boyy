@@ -126,3 +126,99 @@ export function serializeProductMeta({ desc = '', secret = '', seller_key = '', 
     version: version || '1.0',
   });
 }
+
+/**
+ * Retrieve roles map from SYSTEM_USER_ROLES activity log row
+ * Root 'admin' is always default 'super_admin'
+ */
+export async function getUserRolesMap() {
+  try {
+    const { data } = await supabaseAdmin
+      .from('activity_logs')
+      .select('details')
+      .eq('action', 'SYSTEM_USER_ROLES')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const map = (data && data.details && typeof data.details === 'object') ? { ...data.details } : {};
+    if (!map.admin) {
+      map.admin = 'super_admin';
+    }
+    return map;
+  } catch (err) {
+    console.error('[GET_USER_ROLES_MAP_ERROR]', err);
+    return { admin: 'super_admin' };
+  }
+}
+
+/**
+ * Assign or update a role for a username ('super_admin' or 'admin')
+ */
+export async function setUserRole(username, role = 'admin') {
+  try {
+    const cleanUser = (username || '').toLowerCase().trim();
+    if (!cleanUser) return;
+
+    const currentMap = await getUserRolesMap();
+    currentMap[cleanUser] = role;
+
+    const { data: existing } = await supabaseAdmin
+      .from('activity_logs')
+      .select('id')
+      .eq('action', 'SYSTEM_USER_ROLES')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      await supabaseAdmin
+        .from('activity_logs')
+        .update({ details: currentMap })
+        .eq('id', existing.id);
+    } else {
+      await supabaseAdmin
+        .from('activity_logs')
+        .insert({
+          action: 'SYSTEM_USER_ROLES',
+          description: 'User roles mapping configuration',
+          details: currentMap,
+          created_at: new Date().toISOString(),
+        });
+    }
+    return currentMap;
+  } catch (err) {
+    console.error('[SET_USER_ROLE_ERROR]', err);
+  }
+}
+
+/**
+ * Remove role mapping for a username
+ */
+export async function removeUserRole(username) {
+  try {
+    const cleanUser = (username || '').toLowerCase().trim();
+    if (!cleanUser || cleanUser === 'admin') return;
+
+    const currentMap = await getUserRolesMap();
+    delete currentMap[cleanUser];
+
+    const { data: existing } = await supabaseAdmin
+      .from('activity_logs')
+      .select('id')
+      .eq('action', 'SYSTEM_USER_ROLES')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      await supabaseAdmin
+        .from('activity_logs')
+        .update({ details: currentMap })
+        .eq('id', existing.id);
+    }
+    return currentMap;
+  } catch (err) {
+    console.error('[REMOVE_USER_ROLE_ERROR]', err);
+  }
+}

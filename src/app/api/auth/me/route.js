@@ -17,7 +17,7 @@ export async function GET(req) {
     user: {
       id: admin.id,
       username: admin.username,
-      role: admin.role,
+      role: admin.role || (admin.username?.toLowerCase() === 'admin' ? 'super_admin' : 'admin'),
     },
   });
 }

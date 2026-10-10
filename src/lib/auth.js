@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { verifyAdminToken } from './crypto';
+import { getUserRolesMap } from './supabase';
 
 /**
  * Extract Client IP from Request Headers
@@ -42,5 +43,19 @@ export async function getAuthenticatedAdmin(req) {
   }
 
   if (!token) return null;
-  return verifyAdminToken(token);
+  const admin = verifyAdminToken(token);
+  if (!admin) return null;
+
+  try {
+    const rolesMap = await getUserRolesMap();
+    if (admin.username) {
+      admin.role = rolesMap[admin.username.toLowerCase()] || admin.role || (admin.username.toLowerCase() === 'admin' ? 'super_admin' : 'admin');
+    }
+  } catch (e) {
+    if (!admin.role) {
+      admin.role = admin.username?.toLowerCase() === 'admin' ? 'super_admin' : 'admin';
+    }
+  }
+
+  return admin;
 }
