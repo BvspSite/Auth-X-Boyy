@@ -588,7 +588,7 @@ Private Shared url As String = "${serverUrl}"`,
   };
 
   // Seller link formatted
-  const sellerApiUrl = `${serverUrl}/api/seller/?sellerkey=${currentApp.seller_key}&type=add&expiry=1&mask=******-******-******-******-******-******&level=1&amount=1&character=1&format=json`;
+  const sellerApiUrl = `${serverUrl}/api/seller?sellerkey=${currentApp.seller_key}&type=add&expiry=1&mask=******-******-******-******-******-******&level=1&amount=1&character=1&format=json`;
 
   if (!adminUser) {
     return (
