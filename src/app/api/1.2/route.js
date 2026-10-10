@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, logActivity } from '@/lib/supabase';
+import { supabaseAdmin, logActivity, parseProductMeta } from '@/lib/supabase';
 import { getClientIp } from '@/lib/auth';
 
 /**
@@ -48,10 +48,10 @@ export async function POST(req) {
         return NextResponse.json({ success: false, message: 'Key is empty' });
       }
 
-      // Forward to activation logic
+      // 1. Fetch license and product
       const { data: license } = await supabaseAdmin
         .from('licenses')
-        .select('*, products(id, name)')
+        .select('*, products(id, name, description)')
         .eq('license_key', key)
         .maybeSingle();
 
@@ -59,11 +59,27 @@ export async function POST(req) {
         return NextResponse.json({ success: false, message: 'Invalid license key' });
       }
 
+      // Check if application is paused by admin
+      const appMeta = parseProductMeta(license.products);
+      if (appMeta && appMeta.paused) {
+        return NextResponse.json({ success: false, message: 'Application is currently paused by admin.' });
+      }
+
       if (license.status === 'banned') {
         return NextResponse.json({ success: false, message: 'Key has been banned' });
       }
 
       const now = new Date();
+
+      // Check if expired
+      if (license.status === 'expired' || (license.expires_at && new Date(license.expires_at) < now)) {
+        if (license.status !== 'expired') {
+          await supabaseAdmin.from('licenses').update({ status: 'expired' }).eq('id', license.id);
+        }
+        return NextResponse.json({ success: false, message: 'Key has expired' });
+      }
+
+      // A. UNUSED KEY -> First time activation
       if (license.status === 'unused') {
         let updatedExpiresAt = null;
         if (license.duration_days > 0) {
@@ -81,8 +97,15 @@ export async function POST(req) {
             license_id: license.id,
             hwid,
             ip_address: ip,
+            first_used_at: now.toISOString(),
+            last_used_at: now.toISOString(),
           }]);
         }
+
+        await logActivity('KEYAUTH_ACTIVATED', `Key activated via KeyAuth loader: ${key}`, {
+          hwid,
+          product: license.product_id,
+        }, ip);
 
         return NextResponse.json({
           success: true,
@@ -96,6 +119,56 @@ export async function POST(req) {
             }],
           },
         });
+      }
+
+      // B. ACTIVE KEY -> HWID Verification & Re-binding if HWID was reset
+      const { data: devices } = await supabaseAdmin
+        .from('license_devices')
+        .select('*')
+        .eq('license_id', license.id);
+
+      const currentDevices = devices || [];
+      const matchedDevice = currentDevices.find((d) => d.hwid === hwid);
+
+      if (matchedDevice) {
+        // Same registered PC: update last_used_at & IP
+        await supabaseAdmin
+          .from('license_devices')
+          .update({
+            last_used_at: now.toISOString(),
+            ip_address: ip,
+          })
+          .eq('id', matchedDevice.id);
+      } else {
+        // HWID not registered yet
+        const maxDevices = license.max_devices || 1;
+        if (currentDevices.length >= maxDevices) {
+          // Already bound to other device(s)
+          await logActivity('KEYAUTH_HWID_MISMATCH', `HWID mismatch on KeyAuth login: ${key}`, {
+            hwid,
+            maxDevices,
+          }, ip);
+
+          return NextResponse.json({
+            success: false,
+            message: 'HWID mismatch! Key is registered to another device. Hubungi admin untuk reset HWID.',
+          });
+        }
+
+        // HWID was reset (currentDevices.length < maxDevices) -> Re-bind this new HWID!
+        if (hwid) {
+          await supabaseAdmin.from('license_devices').insert([{
+            license_id: license.id,
+            hwid,
+            ip_address: ip,
+            first_used_at: now.toISOString(),
+            last_used_at: now.toISOString(),
+          }]);
+
+          await logActivity('KEYAUTH_HWID_REBOUND', `Key rebound to new HWID: ${key}`, {
+            hwid,
+          }, ip);
+        }
       }
 
       return NextResponse.json({
