@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, logActivity } from '@/lib/supabase';
+import { supabaseAdmin, logActivity, parseProductMeta } from '@/lib/supabase';
 import { getClientIp } from '@/lib/auth';
 
 /**
@@ -34,7 +34,7 @@ export async function POST(req) {
     // 1. Fetch license details from Supabase
     const { data: license, error: fetchErr } = await supabaseAdmin
       .from('licenses')
-      .select('*, products(id, name)')
+      .select('*, products(id, name, description)')
       .eq('license_key', license_key)
       .maybeSingle();
 
@@ -52,6 +52,16 @@ export async function POST(req) {
         success: false,
         message: 'License Key tidak ditemukan atau tidak valid.',
       }, { status: 404 });
+    }
+
+    // Check if application is paused by admin
+    const appMeta = parseProductMeta(license.products);
+    if (appMeta && appMeta.paused) {
+      await logActivity('LICENSE_APP_PAUSED', `Attempt on paused app: ${appMeta.name}`, { hwid, license_key }, ip);
+      return NextResponse.json({
+        success: false,
+        message: 'Application is currently paused by admin.',
+      }, { status: 403 });
     }
 
     // 2. Check if banned

@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin, logActivity } from '@/lib/supabase';
+import crypto from 'crypto';
+import { supabaseAdmin, logActivity, parseProductMeta, serializeProductMeta } from '@/lib/supabase';
 import { getAuthenticatedAdmin, getClientIp } from '@/lib/auth';
 
 /**
  * GET /api/admin/products
- * Lists all registered products
+ * Lists all registered products with full credentials & status
  */
 export async function GET(req) {
   const admin = await getAuthenticatedAdmin(req);
@@ -20,10 +21,13 @@ export async function GET(req) {
 
     if (error) throw error;
 
-    const formatted = (products || []).map((p) => ({
-      ...p,
-      licenseCount: p.licenses ? p.licenses[0]?.count || 0 : 0,
-    }));
+    const formatted = (products || []).map((p) => {
+      const parsed = parseProductMeta(p);
+      return {
+        ...parsed,
+        licenseCount: p.licenses ? p.licenses[0]?.count || 0 : 0,
+      };
+    });
 
     return NextResponse.json({
       success: true,
@@ -36,7 +40,7 @@ export async function GET(req) {
 
 /**
  * POST /api/admin/products
- * Creates or updates a product
+ * Handles Create, Rename, Pause/Unpause, Refresh Secret, Refresh Seller Key
  */
 export async function POST(req) {
   const admin = await getAuthenticatedAdmin(req);
@@ -47,38 +51,268 @@ export async function POST(req) {
 
   try {
     const body = await req.json().catch(() => ({}));
-    let { id, name, description } = body;
+    const { action = 'create' } = body;
 
-    id = (id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
-    name = (name || '').trim();
+    // 1. CREATE APP
+    if (action === 'create' || !body.action) {
+      let { id, name, description } = body;
+      id = (id || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '-');
+      name = (name || '').trim();
 
-    if (!id || !name) {
-      return NextResponse.json({ success: false, message: 'ID dan Nama Produk wajib diisi.' }, { status: 400 });
+      if (!id || !name) {
+        return NextResponse.json({ success: false, message: 'ID dan Nama Aplikasi wajib diisi.' }, { status: 400 });
+      }
+
+      // Check if already exists
+      const { data: existing } = await supabaseAdmin
+        .from('products')
+        .select('id')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json({ success: false, message: 'Aplikasi dengan ID ini sudah ada!' }, { status: 400 });
+      }
+
+      const secret = crypto.randomBytes(16).toString('hex');
+      const seller_key = crypto.randomBytes(16).toString('hex');
+
+      const jsonDesc = serializeProductMeta({
+        desc: description || 'Application created via Auth-X-Boy',
+        secret,
+        seller_key,
+        paused: false,
+        version: '1.0',
+      });
+
+      const { data: inserted, error } = await supabaseAdmin
+        .from('products')
+        .insert({
+          id,
+          name,
+          description: jsonDesc,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logActivity('APP_CREATED', `Application created: ${name} (${id})`, {
+        app_id: id,
+        admin: admin.username,
+      }, ip);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Aplikasi berhasil dibuat!',
+        product: parseProductMeta(inserted),
+      });
     }
 
-    const { data: inserted, error } = await supabaseAdmin
-      .from('products')
-      .upsert({
-        id,
-        name,
-        description: description || '',
-        created_at: new Date().toISOString(),
-      }, { onConflict: 'id' })
-      .select()
-      .single();
+    // 2. RENAME APP
+    if (action === 'rename') {
+      const { id, name } = body;
+      if (!id || !name) {
+        return NextResponse.json({ success: false, message: 'ID dan nama baru diperlukan.' }, { status: 400 });
+      }
 
-    if (error) throw error;
+      const { data: current, error: getErr } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
 
-    await logActivity('PRODUCT_CREATED', `Product created/updated: ${name} (${id})`, {
-      product_id: id,
-      admin: admin.username,
-    }, ip);
+      if (getErr || !current) {
+        return NextResponse.json({ success: false, message: 'Aplikasi tidak ditemukan.' }, { status: 404 });
+      }
 
-    return NextResponse.json({
-      success: true,
-      message: 'Produk berhasil disimpan!',
-      product: inserted,
-    });
+      const parsed = parseProductMeta(current);
+      const updatedJson = serializeProductMeta({
+        desc: parsed.description,
+        secret: parsed.secret,
+        seller_key: parsed.seller_key,
+        paused: parsed.paused,
+        version: parsed.version,
+      });
+
+      const { data: updated, error } = await supabaseAdmin
+        .from('products')
+        .update({
+          name: name.trim(),
+          description: updatedJson,
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logActivity('APP_RENAMED', `Application renamed to: ${name.trim()} (${id})`, {
+        app_id: id,
+        newName: name.trim(),
+        admin: admin.username,
+      }, ip);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Nama aplikasi berhasil diubah!',
+        product: parseProductMeta(updated),
+      });
+    }
+
+    // 3. PAUSE / UNPAUSE APP
+    if (action === 'pause') {
+      const { id, paused } = body;
+      if (!id) {
+        return NextResponse.json({ success: false, message: 'ID aplikasi diperlukan.' }, { status: 400 });
+      }
+
+      const { data: current, error: getErr } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (getErr || !current) {
+        return NextResponse.json({ success: false, message: 'Aplikasi tidak ditemukan.' }, { status: 404 });
+      }
+
+      const parsed = parseProductMeta(current);
+      const isPaused = paused !== undefined ? Boolean(paused) : !parsed.paused;
+
+      const updatedJson = serializeProductMeta({
+        desc: parsed.description,
+        secret: parsed.secret,
+        seller_key: parsed.seller_key,
+        paused: isPaused,
+        version: parsed.version,
+      });
+
+      const { data: updated, error } = await supabaseAdmin
+        .from('products')
+        .update({ description: updatedJson })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logActivity(
+        isPaused ? 'APP_PAUSED' : 'APP_UNPAUSED',
+        `Application ${isPaused ? 'paused' : 'unpaused'}: ${current.name} (${id})`,
+        { app_id: id, paused: isPaused, admin: admin.username },
+        ip
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: isPaused
+          ? 'Aplikasi & semua pengguna berhasil di-pause!'
+          : 'Aplikasi berhasil di-unpause dan kembali aktif!',
+        product: parseProductMeta(updated),
+      });
+    }
+
+    // 4. REFRESH APP SECRET
+    if (action === 'refresh_secret') {
+      const { id } = body;
+      if (!id) {
+        return NextResponse.json({ success: false, message: 'ID aplikasi diperlukan.' }, { status: 400 });
+      }
+
+      const { data: current, error: getErr } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (getErr || !current) {
+        return NextResponse.json({ success: false, message: 'Aplikasi tidak ditemukan.' }, { status: 404 });
+      }
+
+      const parsed = parseProductMeta(current);
+      const newSecret = crypto.randomBytes(16).toString('hex');
+
+      const updatedJson = serializeProductMeta({
+        desc: parsed.description,
+        secret: newSecret,
+        seller_key: parsed.seller_key,
+        paused: parsed.paused,
+        version: parsed.version,
+      });
+
+      const { data: updated, error } = await supabaseAdmin
+        .from('products')
+        .update({ description: updatedJson })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logActivity('APP_SECRET_REFRESHED', `App secret refreshed: ${current.name} (${id})`, {
+        app_id: id,
+        admin: admin.username,
+      }, ip);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Application Secret berhasil diperbarui!',
+        product: parseProductMeta(updated),
+      });
+    }
+
+    // 5. REFRESH SELLER KEY
+    if (action === 'refresh_seller_key') {
+      const { id } = body;
+      if (!id) {
+        return NextResponse.json({ success: false, message: 'ID aplikasi diperlukan.' }, { status: 400 });
+      }
+
+      const { data: current, error: getErr } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (getErr || !current) {
+        return NextResponse.json({ success: false, message: 'Aplikasi tidak ditemukan.' }, { status: 404 });
+      }
+
+      const parsed = parseProductMeta(current);
+      const newSellerKey = crypto.randomBytes(16).toString('hex');
+
+      const updatedJson = serializeProductMeta({
+        desc: parsed.description,
+        secret: parsed.secret,
+        seller_key: newSellerKey,
+        paused: parsed.paused,
+        version: parsed.version,
+      });
+
+      const { data: updated, error } = await supabaseAdmin
+        .from('products')
+        .update({ description: updatedJson })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logActivity('SELLER_KEY_REFRESHED', `Seller key refreshed: ${current.name} (${id})`, {
+        app_id: id,
+        admin: admin.username,
+      }, ip);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Seller Key berhasil diperbarui!',
+        product: parseProductMeta(updated),
+      });
+    }
+
+    return NextResponse.json({ success: false, message: 'Aksi tidak dikenali.' }, { status: 400 });
   } catch (err) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });
   }
@@ -86,7 +320,7 @@ export async function POST(req) {
 
 /**
  * DELETE /api/admin/products
- * Deletes a product
+ * Deletes an application
  */
 export async function DELETE(req) {
   const admin = await getAuthenticatedAdmin(req);
@@ -103,29 +337,24 @@ export async function DELETE(req) {
       return NextResponse.json({ success: false, message: 'ID produk diperlukan.' }, { status: 400 });
     }
 
+    // Optional cascade delete licenses
+    await supabaseAdmin.from('licenses').delete().eq('product_id', id);
+
     const { error } = await supabaseAdmin
       .from('products')
       .delete()
       .eq('id', id);
 
-    if (error) {
-      if (error.code === '23503') {
-        return NextResponse.json({
-          success: false,
-          message: 'Produk tidak dapat dihapus karena masih memiliki lisensi terkait. Hapus atau pindahkan lisensi terlebih dahulu.',
-        }, { status: 400 });
-      }
-      throw error;
-    }
+    if (error) throw error;
 
-    await logActivity('PRODUCT_DELETED', `Product deleted: ${id}`, {
-      product_id: id,
+    await logActivity('APP_DELETED', `Application deleted: ${id}`, {
+      app_id: id,
       admin: admin.username,
     }, ip);
 
     return NextResponse.json({
       success: true,
-      message: 'Produk berhasil dihapus.',
+      message: 'Aplikasi dan data terkait berhasil dihapus.',
     });
   } catch (err) {
     return NextResponse.json({ success: false, message: err.message }, { status: 500 });

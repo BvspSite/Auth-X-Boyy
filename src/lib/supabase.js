@@ -60,3 +60,69 @@ export async function logActivity(action, description, details = {}, ip = '127.0
     console.error('[ACTIVITY_LOG_ERROR]', err);
   }
 }
+
+/**
+ * Parses product metadata stored in description column
+ */
+export function parseProductMeta(product) {
+  if (!product) return null;
+  let meta = {
+    desc: '',
+    secret: '',
+    seller_key: '',
+    paused: false,
+    version: '1.0',
+  };
+
+  const raw = product.description || '';
+  if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      meta = { ...meta, ...parsed };
+    } catch {
+      meta.desc = raw;
+    }
+  } else {
+    meta.desc = raw;
+  }
+
+  // Ensure deterministic fallback if not yet assigned
+  if (!meta.secret) {
+    const id = product.id || 'default_app';
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = ((hash << 5) - hash + id.charCodeAt(i)) | 0;
+    const hex = Math.abs(hash).toString(16).padStart(8, '0');
+    meta.secret = `${hex}f4135dea2fc09ad383eaae4762eece4de`.slice(0, 32);
+  }
+
+  if (!meta.seller_key) {
+    const id = product.id || 'default_seller';
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) hash = ((hash << 7) - hash + id.charCodeAt(i)) | 0;
+    const hex = Math.abs(hash).toString(16).padStart(8, '0');
+    meta.seller_key = `${hex}896c1e9e30cfc98bc59ff1`.slice(0, 32);
+  }
+
+  return {
+    ...product,
+    description: meta.desc,
+    secret: meta.secret,
+    seller_key: meta.seller_key,
+    paused: Boolean(meta.paused),
+    version: meta.version || '1.0',
+    metaRaw: meta,
+  };
+}
+
+/**
+ * Serializes product metadata into JSON string for description column
+ */
+export function serializeProductMeta({ desc = '', secret = '', seller_key = '', paused = false, version = '1.0' }) {
+  return JSON.stringify({
+    desc: desc || '',
+    secret: secret || '',
+    seller_key: seller_key || '',
+    paused: Boolean(paused),
+    version: version || '1.0',
+  });
+}

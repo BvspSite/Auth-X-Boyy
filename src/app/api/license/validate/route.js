@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin, parseProductMeta } from '@/lib/supabase';
 import { getClientIp } from '@/lib/auth';
 
 /**
@@ -22,12 +22,21 @@ export async function POST(req) {
 
     const { data: license, error } = await supabaseAdmin
       .from('licenses')
-      .select('*, products(id, name), license_devices(hwid)')
+      .select('*, products(id, name, description), license_devices(hwid)')
       .eq('license_key', license_key)
       .maybeSingle();
 
     if (error || !license) {
       return NextResponse.json({ success: false, message: 'License tidak valid.' }, { status: 404 });
+    }
+
+    // Check if app is paused
+    const appMeta = parseProductMeta(license.products);
+    if (appMeta && appMeta.paused) {
+      return NextResponse.json({
+        success: false,
+        message: 'Application is currently paused by admin.',
+      }, { status: 403 });
     }
 
     if (license.status === 'banned') {
