@@ -30,11 +30,23 @@ export async function POST(req) {
       .eq('username', cleanUser)
       .maybeSingle();
 
-    if (error || !admin) {
+    if (error) {
+      console.error('[SUPABASE_LOGIN_ERROR]', error);
+      const isMissingKey = !process.env.SUPABASE_SERVICE_ROLE_KEY;
+      return NextResponse.json({
+        success: false,
+        message: isMissingKey
+          ? 'Environment Variable SUPABASE_SERVICE_ROLE_KEY belum diisi di Settings Vercel! Harap tambahkan di Project Settings -> Environment Variables, lalu Redeploy.'
+          : 'Database Supabase Error: ' + (error.message || JSON.stringify(error)),
+        details: error,
+      }, { status: 500 });
+    }
+
+    if (!admin) {
       await logActivity('ADMIN_LOGIN_FAILED', `Login failed for: ${cleanUser}`, {}, ip);
       return NextResponse.json({
         success: false,
-        message: 'Username atau password salah.',
+        message: 'Username admin tidak ditemukan di database.',
       }, { status: 401 });
     }
 

@@ -8,7 +8,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 export async function GET() {
   try {
     const [
-      { count: totalLicenses },
+      { count: totalLicenses, error: errLicenses },
       { count: totalProducts },
       { count: activeUsers },
       { count: totalLogs },
@@ -19,8 +19,13 @@ export async function GET() {
       supabaseAdmin.from('activity_logs').select('*', { count: 'exact', head: true }),
     ]);
 
+    const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+
     return NextResponse.json({
       success: true,
+      databaseConnected: !errLicenses,
+      hasServiceRoleKey: hasServiceKey,
+      dbError: errLicenses ? errLicenses.message : null,
       accounts: totalProducts || 1,
       applications: totalProducts || 1,
       licenses: totalLicenses || 0,
